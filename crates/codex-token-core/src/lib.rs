@@ -1,10 +1,12 @@
+use std::collections::BTreeMap;
 use std::env;
 use std::fmt;
 use std::fs;
 use std::io;
+use std::ops::AddAssign;
 use std::path::{Path, PathBuf};
 
-use chrono::{DateTime, Local};
+use chrono::{DateTime, Datelike, Duration, Local, LocalResult, NaiveDate, TimeZone};
 use serde_json::Value;
 
 pub const APP_NAME: &str = "codex-token-monitor";
@@ -66,6 +68,32 @@ pub struct TokenUsage {
     pub total_tokens: u64,
 }
 
+impl TokenUsage {
+    pub fn saturating_delta(self, previous: Self) -> Self {
+        Self {
+            input_tokens: self.input_tokens.saturating_sub(previous.input_tokens),
+            cached_input_tokens: self
+                .cached_input_tokens
+                .saturating_sub(previous.cached_input_tokens),
+            output_tokens: self.output_tokens.saturating_sub(previous.output_tokens),
+            reasoning_output_tokens: self
+                .reasoning_output_tokens
+                .saturating_sub(previous.reasoning_output_tokens),
+            total_tokens: self.total_tokens.saturating_sub(previous.total_tokens),
+        }
+    }
+}
+
+impl AddAssign for TokenUsage {
+    fn add_assign(&mut self, rhs: Self) {
+        self.input_tokens += rhs.input_tokens;
+        self.cached_input_tokens += rhs.cached_input_tokens;
+        self.output_tokens += rhs.output_tokens;
+        self.reasoning_output_tokens += rhs.reasoning_output_tokens;
+        self.total_tokens += rhs.total_tokens;
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TokenEvent {
     pub session_id: String,
@@ -89,6 +117,14 @@ pub struct UsageSummary {
     pub this_week: TokenUsage,
     pub this_month: TokenUsage,
     pub all_time: TokenUsage,
+}
+
+#[derive(Debug, Default)]
+pub struct UsageReport {
+    pub summary: UsageSummary,
+    pub sessions: Vec<SessionSummary>,
+    pub diagnostics: Vec<Diagnostic>,
+    pub session_files: Vec<PathBuf>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -191,6 +227,73 @@ pub fn parse_session_file(path: &Path) -> Result<ParseReport, UsageError> {
     Ok(report)
 }
 
+pub fn aggregate_usage(codex_home: &Path, now: DateTime<Local>) -> Result<UsageReport, UsageError> {
+    let session_files = discover_session_files(codex_home)?;
+    let mut diagnostics = Vec::new();
+    let mut events_by_session: BTreeMap<String, Vec<TokenEvent>> = BTreeMap::new();
+
+    for path in &session_files {
+        let report = parse_session_file(path)?;
+        diagnostics.extend(report.diagnostics);
+
+        for event in report.events {
+            events_by_session
+                .entry(event.session_id.clone())
+                .or_default()
+                .push(event);
+        }
+    }
+
+    let ranges = RangeStarts::new(now);
+    let mut summary = UsageSummary::default();
+    let mut sessions = Vec::new();
+
+    for (session_id, mut events) in events_by_session {
+        events.sort_by(|left, right| {
+            left.timestamp
+                .cmp(&right.timestamp)
+                .then_with(|| left.source_path.cmp(&right.source_path))
+                .then_with(|| left.line_number.cmp(&right.line_number))
+        });
+
+        let mut previous = None;
+        for event in &events {
+            let delta = previous.map_or(event.usage, |usage| event.usage.saturating_delta(usage));
+
+            if event.timestamp >= ranges.today {
+                summary.today += delta;
+            }
+            if event.timestamp >= ranges.this_week {
+                summary.this_week += delta;
+            }
+            if event.timestamp >= ranges.this_month {
+                summary.this_month += delta;
+            }
+
+            previous = Some(event.usage);
+        }
+
+        if let Some(last) = events.last() {
+            summary.all_time += last.usage;
+            sessions.push(SessionSummary {
+                session_id,
+                total: last.usage,
+                event_count: events.len(),
+                last_event_at: last.timestamp,
+            });
+        }
+    }
+
+    sessions.sort_by(|left, right| left.session_id.cmp(&right.session_id));
+
+    Ok(UsageReport {
+        summary,
+        sessions,
+        diagnostics,
+        session_files,
+    })
+}
+
 fn collect_jsonl_files(dir: &Path, files: &mut Vec<PathBuf>) -> Result<(), ScanError> {
     let entries = fs::read_dir(dir).map_err(|source| ScanError::ReadDir {
         path: dir.to_path_buf(),
@@ -282,6 +385,36 @@ fn parse_token_usage(value: &Value) -> TokenUsage {
 
 fn usage_field(value: &Value, field: &str) -> u64 {
     value.get(field).and_then(Value::as_u64).unwrap_or(0)
+}
+
+struct RangeStarts {
+    today: DateTime<Local>,
+    this_week: DateTime<Local>,
+    this_month: DateTime<Local>,
+}
+
+impl RangeStarts {
+    fn new(now: DateTime<Local>) -> Self {
+        let today_date = now.date_naive();
+        let week_date = today_date - Duration::days(now.weekday().num_days_from_monday() as i64);
+        let month_date =
+            NaiveDate::from_ymd_opt(now.year(), now.month(), 1).expect("valid month start");
+
+        Self {
+            today: local_midnight(today_date),
+            this_week: local_midnight(week_date),
+            this_month: local_midnight(month_date),
+        }
+    }
+}
+
+fn local_midnight(date: NaiveDate) -> DateTime<Local> {
+    let naive = date.and_hms_opt(0, 0, 0).expect("valid midnight");
+    match Local.from_local_datetime(&naive) {
+        LocalResult::Single(datetime) => datetime,
+        LocalResult::Ambiguous(earliest, _) => earliest,
+        LocalResult::None => Local.from_utc_datetime(&naive),
+    }
 }
 
 #[cfg(windows)]

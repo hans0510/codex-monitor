@@ -1,13 +1,29 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use codex_token_core::parse_session_file;
+use chrono::{DateTime, Local, LocalResult, TimeZone};
+use codex_token_core::{aggregate_usage, parse_session_file};
 
 fn fixture_file() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("../../fixtures/codex-home/sessions/2026/07/07/session-a.jsonl")
         .canonicalize()
         .expect("fixture exists")
+}
+
+fn fixture_home() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../../fixtures/codex-home")
+        .canonicalize()
+        .expect("fixture home exists")
+}
+
+fn local_datetime(year: i32, month: u32, day: u32, hour: u32) -> DateTime<Local> {
+    match Local.with_ymd_and_hms(year, month, day, hour, 0, 0) {
+        LocalResult::Single(datetime) => datetime,
+        LocalResult::Ambiguous(earliest, _) => earliest,
+        LocalResult::None => panic!("invalid local datetime"),
+    }
 }
 
 fn write_temp_jsonl(name: &str, content: &str) -> PathBuf {
@@ -17,6 +33,17 @@ fn write_temp_jsonl(name: &str, content: &str) -> PathBuf {
     ));
     fs::write(&path, content).expect("write temp jsonl");
     path
+}
+
+fn write_temp_codex_home(name: &str) -> PathBuf {
+    let root = std::env::temp_dir().join(format!(
+        "codex-token-monitor-home-{name}-{}",
+        std::process::id()
+    ));
+    fs::remove_dir_all(&root).ok();
+    fs::create_dir_all(root.join("sessions")).expect("sessions dir");
+    fs::create_dir_all(root.join("archived_sessions")).expect("archived dir");
+    root
 }
 
 #[test]
@@ -62,4 +89,57 @@ not-json
     assert!(report.diagnostics[0].message.contains("malformed JSONL"));
 
     fs::remove_file(path).ok();
+}
+
+#[test]
+fn aggregation_does_not_overcount_cumulative_totals() {
+    let report = aggregate_usage(&fixture_home(), local_datetime(2026, 7, 7, 23))
+        .expect("aggregate fixture");
+
+    let session = report
+        .sessions
+        .iter()
+        .find(|session| session.session_id == "session-a")
+        .expect("session-a summary");
+
+    assert_eq!(session.total.total_tokens, 245);
+    assert_eq!(report.summary.all_time.total_tokens, 360);
+    assert_ne!(report.summary.all_time.total_tokens, 155 + 245 + 115);
+}
+
+#[test]
+fn aggregation_covers_time_ranges() {
+    let report = aggregate_usage(&fixture_home(), local_datetime(2026, 7, 7, 23))
+        .expect("aggregate fixture");
+
+    assert_eq!(report.summary.today.total_tokens, 245);
+    assert_eq!(report.summary.this_week.total_tokens, 360);
+    assert_eq!(report.summary.this_month.total_tokens, 360);
+    assert_eq!(report.summary.all_time.total_tokens, 360);
+}
+
+#[test]
+fn aggregation_deduplicates_active_and_archived_by_session_id() {
+    let root = write_temp_codex_home("dedupe");
+    fs::write(
+        root.join("archived_sessions/dup.jsonl"),
+        r#"{"timestamp":"2026-07-06T09:00:00Z","type":"token_count","payload":{"type":"token_count","session_id":"dup-session","info":{"total_token_usage":{"input_tokens":10,"cached_input_tokens":0,"output_tokens":0,"reasoning_output_tokens":0,"total_tokens":10}}}}
+"#,
+    )
+    .expect("write archived duplicate");
+    fs::write(
+        root.join("sessions/dup.jsonl"),
+        r#"{"timestamp":"2026-07-07T09:00:00Z","type":"token_count","payload":{"type":"token_count","session_id":"dup-session","info":{"total_token_usage":{"input_tokens":20,"cached_input_tokens":0,"output_tokens":0,"reasoning_output_tokens":0,"total_tokens":20}}}}
+"#,
+    )
+    .expect("write active duplicate");
+
+    let report =
+        aggregate_usage(&root, local_datetime(2026, 7, 7, 23)).expect("aggregate duplicate");
+
+    assert_eq!(report.sessions.len(), 1);
+    assert_eq!(report.sessions[0].session_id, "dup-session");
+    assert_eq!(report.summary.all_time.total_tokens, 20);
+
+    fs::remove_dir_all(root).ok();
 }
