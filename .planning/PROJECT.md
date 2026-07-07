@@ -12,15 +12,14 @@ Show accurate local Codex token usage for this machine, including both cumulativ
 
 ### Validated
 
-(None yet - ship to validate)
+- [x] Phase 1: Shared Rust core parses local Codex JSONL `token_count` events from the current user's allowlisted session directories.
+- [x] Phase 1: CLI prints today, this week, this month, and all-time token summaries with input, cached input, output, reasoning output, and total columns.
+- [x] Phase 1: Local-only safety boundary is enforced: no network usage source, no credential-file scanning, synthetic fixtures only.
+- [x] Phase 1: CLI exits nonzero with searched paths when no local Codex session logs are found.
 
 ### Active
 
-- [ ] Parse local Codex JSONL session logs from the current user's Codex data directory.
-- [ ] Count only local machine usage, not organization-wide or account-wide cloud usage.
-- [ ] Show cumulative usage by useful time ranges such as today, this week, this month, and all time.
 - [ ] Show the currently active Codex session with automatic refresh as new token events arrive.
-- [ ] Provide an Ubuntu command-line version that prints useful token statistics.
 - [ ] Provide a Windows version with a tray icon, a desktop capybara companion, and a click-to-open stats panel.
 - [ ] Keep the Windows capybara visual original and cute without copying a protected character design.
 
@@ -79,4 +78,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-07-07 after roadmap creation*
+*Last updated: 2026-07-07 after Phase 1 verification*
