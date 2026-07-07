@@ -39,6 +39,12 @@
           <div><span>Reasoning</span><strong id="reasoningTotal">0</strong></div>
         </div>
 
+        <label class="size-control">
+          <span>大小</span>
+          <input id="luluSize" type="range" min="190" max="340" step="5" />
+          <strong id="luluSizeValue">100%</strong>
+        </label>
+
         <p class="status-line" id="statusLine">启动中...</p>
         <p class="home-line" id="homeLine"></p>
       </section>
@@ -48,9 +54,8 @@
         id="capybara"
         type="button"
         aria-label="拖动噜噜，点击打开或隐藏 token 统计"
-        data-tauri-drag-region
       >
-        <img src="./lulu-cutout.png" alt="噜噜" draggable="false" data-tauri-drag-region />
+        <img src="./lulu-cutout.png" alt="噜噜" draggable="false" />
       </button>
     </main>
     <script src="./app.js"></script>

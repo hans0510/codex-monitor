@@ -1,11 +1,16 @@
 const invoke = window.__TAURI__.core.invoke;
-const appWindow = window.__TAURI__.window.getCurrentWindow();
+
+const WINDOW_WIDTH = 360;
+const DEFAULT_LULU_WIDTH = 290;
+const LULU_ASPECT = 1173 / 879;
 
 const state = {
   expanded: true,
   lastTotal: 0,
-  companionPointer: null,
-  companionDragged: false,
+  pointer: null,
+  moveFrame: 0,
+  pendingMove: null,
+  dragged: false,
 };
 
 const capybara = document.getElementById("capybara");
@@ -21,52 +26,135 @@ const reasoningTotal = document.getElementById("reasoningTotal");
 const latestSession = document.getElementById("latestSession");
 const latestMeta = document.getElementById("latestMeta");
 const dragHandle = document.getElementById("dragHandle");
+const sizeInput = document.getElementById("luluSize");
+const sizeValue = document.getElementById("luluSizeValue");
 
 capybara.addEventListener("click", () => {
-  if (state.companionDragged) {
-    state.companionDragged = false;
+  if (state.dragged) {
+    state.dragged = false;
     return;
   }
   state.expanded = !state.expanded;
   panel.classList.toggle("collapsed", !state.expanded);
 });
 
-capybara.addEventListener("mousedown", (event) => {
-  if (event.buttons !== 1) {
+capybara.addEventListener("pointerdown", beginWindowMove);
+dragHandle.addEventListener("pointerdown", beginWindowMove);
+document.addEventListener("pointermove", moveWindow);
+document.addEventListener("pointerup", finishWindowMove);
+document.addEventListener("pointercancel", finishWindowMove);
+
+sizeInput.addEventListener("input", () => {
+  applyLuluSize(Number(sizeInput.value), true);
+});
+
+function loadLuluSize() {
+  const saved = Number(window.localStorage.getItem("luluSize"));
+  const size = Number.isFinite(saved) && saved > 0 ? saved : DEFAULT_LULU_WIDTH;
+  applyLuluSize(size, false);
+}
+
+async function beginWindowMove(event) {
+  if (event.button !== 0) {
     return;
   }
-  state.companionPointer = {
-    x: event.clientX,
-    y: event.clientY,
+
+  const target = event.currentTarget;
+  const pointerId = event.pointerId;
+  const startX = event.screenX;
+  const startY = event.screenY;
+
+  state.pointer = {
+    id: pointerId,
+    target,
+    startX,
+    startY,
+    windowX: 0,
+    windowY: 0,
+    active: false,
+    ready: false,
   };
-});
+  target.setPointerCapture?.(pointerId);
 
-document.addEventListener("mousemove", async (event) => {
-  if (!state.companionPointer || event.buttons !== 1) {
+  try {
+    const position = await invoke("get_window_position");
+    if (!state.pointer || state.pointer.id !== pointerId) {
+      return;
+    }
+    state.pointer.windowX = position.x;
+    state.pointer.windowY = position.y;
+    state.pointer.ready = true;
+  } catch (error) {
+    statusLine.textContent = `拖动失败：${error}`;
+    document.body.dataset.status = "error";
+  }
+}
+
+function moveWindow(event) {
+  const pointer = state.pointer;
+  if (!pointer || !pointer.ready || event.pointerId !== pointer.id || event.buttons !== 1) {
     return;
   }
 
-  const dx = event.clientX - state.companionPointer.x;
-  const dy = event.clientY - state.companionPointer.y;
-  if (Math.hypot(dx, dy) >= 4) {
-    state.companionPointer = null;
-    state.companionDragged = true;
-    await appWindow.startDragging();
+  const dx = event.screenX - pointer.startX;
+  const dy = event.screenY - pointer.startY;
+  if (!pointer.active && Math.hypot(dx, dy) < 4) {
+    return;
   }
-});
 
-document.addEventListener("mouseup", () => {
-  state.companionPointer = null;
+  pointer.active = true;
+  state.dragged = true;
+  scheduleWindowMove(pointer.windowX + dx, pointer.windowY + dy);
+}
+
+function scheduleWindowMove(x, y) {
+  state.pendingMove = { x, y };
+  if (state.moveFrame) {
+    return;
+  }
+
+  state.moveFrame = window.requestAnimationFrame(async () => {
+    const move = state.pendingMove;
+    state.pendingMove = null;
+    state.moveFrame = 0;
+    if (!move) {
+      return;
+    }
+
+    try {
+      await invoke("set_window_position", move);
+    } catch (error) {
+      statusLine.textContent = `拖动失败：${error}`;
+      document.body.dataset.status = "error";
+    }
+  });
+}
+
+function finishWindowMove(event) {
+  const pointer = state.pointer;
+  if (!pointer || event.pointerId !== pointer.id) {
+    return;
+  }
+
+  pointer.target.releasePointerCapture?.(pointer.id);
+  state.pointer = null;
   window.setTimeout(() => {
-    state.companionDragged = false;
-  }, 120);
-});
+    state.dragged = false;
+  }, 160);
+}
 
-dragHandle.addEventListener("mousedown", async (event) => {
-  if (event.buttons === 1) {
-    await appWindow.startDragging();
+function applyLuluSize(width, persist) {
+  const safeWidth = Math.min(340, Math.max(190, width));
+  const safeHeight = Math.round(safeWidth * LULU_ASPECT);
+  capybara.style.width = `${safeWidth}px`;
+  capybara.style.height = `${safeHeight}px`;
+  capybara.style.left = `${Math.round((WINDOW_WIDTH - safeWidth) / 2)}px`;
+  sizeInput.value = String(safeWidth);
+  sizeValue.textContent = `${Math.round((safeWidth / DEFAULT_LULU_WIDTH) * 100)}%`;
+  if (persist) {
+    window.localStorage.setItem("luluSize", String(safeWidth));
   }
-});
+}
 
 async function refreshUsage() {
   try {
@@ -113,5 +201,6 @@ function renderUsage(usage) {
   }
 }
 
+loadLuluSize();
 refreshUsage();
 window.setInterval(refreshUsage, 2000);

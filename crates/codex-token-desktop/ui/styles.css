@@ -38,6 +38,7 @@ button {
   top: 12px;
   left: 12px;
   right: 12px;
+  z-index: 2;
   min-height: 334px;
   padding: 16px;
   border: 1px solid var(--line);
@@ -71,6 +72,7 @@ button {
   flex: 1;
   min-width: 0;
   cursor: move;
+  user-select: none;
 }
 
 .window-actions {
@@ -241,18 +243,49 @@ h1 {
   font-size: 10px;
 }
 
+.size-control {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) 42px;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.42);
+}
+
+.size-control span,
+.size-control strong {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.size-control input {
+  width: 100%;
+  accent-color: #ee9d26;
+}
+
+.size-control strong {
+  text-align: right;
+}
+
 .lulu {
   position: absolute;
   left: 35px;
   bottom: 12px;
+  z-index: 1;
   width: 290px;
-  height: 304px;
+  height: 387px;
   border: 0;
   padding: 0;
   background: transparent;
   cursor: grab;
   filter: drop-shadow(0 18px 18px rgba(60, 35, 14, 0.22));
   transition: transform 160ms ease;
+  touch-action: none;
   user-select: none;
 }
 
