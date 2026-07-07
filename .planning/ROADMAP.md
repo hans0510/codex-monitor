@@ -30,8 +30,13 @@ Build the product vertically from the trustworthy counting core outward. Phase 1
 **Plans:** 3 plans
 
 Plans:
+**Wave 1**
 - [ ] 01-01: Scaffold Rust workspace, sanitized fixtures, and session log discovery.
+
+**Wave 2** *(blocked on Wave 1 completion)*
 - [ ] 01-02: Implement JSONL token parser, dedupe, aggregation, and diagnostics.
+
+**Wave 3** *(blocked on Wave 2 completion)*
 - [ ] 01-03: Implement Ubuntu CLI summary output and no-log handling.
 
 ### Phase 2: Active Session Refresh
