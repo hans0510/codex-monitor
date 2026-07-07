@@ -7,25 +7,25 @@
 
 ### Local Data Source
 
-- [ ] **DATA-01**: User can run the tool without configuring a path when Codex data exists in the current user's default Codex directory.
-- [ ] **DATA-02**: Tool reads only local Codex session log locations and does not read credential files such as `auth.json`.
-- [ ] **DATA-03**: Tool parses Codex JSONL `token_count` events into structured token usage records.
-- [ ] **DATA-04**: Tool includes active and archived local sessions in all-time statistics while deduplicating sessions by session id.
-- [ ] **DATA-05**: Tool reports clear diagnostics when expected token fields are missing or partially unsupported.
+- [x] **DATA-01**: User can run the tool without configuring a path when Codex data exists in the current user's default Codex directory.
+- [x] **DATA-02**: Tool reads only local Codex session log locations and does not read credential files such as `auth.json`.
+- [x] **DATA-03**: Tool parses Codex JSONL `token_count` events into structured token usage records.
+- [x] **DATA-04**: Tool includes active and archived local sessions in all-time statistics while deduplicating sessions by session id.
+- [x] **DATA-05**: Tool reports clear diagnostics when expected token fields are missing or partially unsupported.
 
 ### Token Statistics
 
-- [ ] **STAT-01**: User can see accurate per-session totals without overcounting cumulative `total_token_usage` events.
-- [ ] **STAT-02**: User can see token totals for today, this week, this month, and all time.
-- [ ] **STAT-03**: User can see input, cached input, output, reasoning output, and total token counts when those fields exist.
+- [x] **STAT-01**: User can see accurate per-session totals without overcounting cumulative `total_token_usage` events.
+- [x] **STAT-02**: User can see token totals for today, this week, this month, and all time.
+- [x] **STAT-03**: User can see input, cached input, output, reasoning output, and total token counts when those fields exist.
 - [ ] **STAT-04**: User can see current active Codex session usage update automatically as the session log grows.
 - [ ] **STAT-05**: User can see rate-limit percentage context when Codex logs provide it.
 
 ### Ubuntu CLI
 
-- [ ] **CLI-01**: Ubuntu user can run a command that prints local Codex token summaries in a readable terminal format.
+- [x] **CLI-01**: Ubuntu user can run a command that prints local Codex token summaries in a readable terminal format.
 - [ ] **CLI-02**: Ubuntu user can run a watch mode that refreshes the current active session statistics.
-- [ ] **CLI-03**: CLI exits with a useful message when no Codex session logs are found.
+- [x] **CLI-03**: CLI exits with a useful message when no Codex session logs are found.
 
 ### Windows Desktop
 
@@ -39,7 +39,7 @@
 
 - [ ] **SAFE-01**: Windows companion uses an original capybara-inspired design and does not directly copy a protected character.
 - [ ] **SAFE-02**: Windows companion does not permanently steal focus or block normal desktop work during normal use.
-- [ ] **SAFE-03**: Tool performs no network requests for usage data in v1.
+- [x] **SAFE-03**: Tool performs no network requests for usage data in v1.
 
 ## v2 Requirements
 
@@ -77,19 +77,19 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| DATA-01 | Phase 1 | Pending |
-| DATA-02 | Phase 1 | Pending |
-| DATA-03 | Phase 1 | Pending |
-| DATA-04 | Phase 1 | Pending |
-| DATA-05 | Phase 1 | Pending |
-| STAT-01 | Phase 1 | Pending |
-| STAT-02 | Phase 1 | Pending |
-| STAT-03 | Phase 1 | Pending |
+| DATA-01 | Phase 1 | Complete |
+| DATA-02 | Phase 1 | Complete |
+| DATA-03 | Phase 1 | Complete |
+| DATA-04 | Phase 1 | Complete |
+| DATA-05 | Phase 1 | Complete |
+| STAT-01 | Phase 1 | Complete |
+| STAT-02 | Phase 1 | Complete |
+| STAT-03 | Phase 1 | Complete |
 | STAT-04 | Phase 2 | Pending |
 | STAT-05 | Phase 2 | Pending |
-| CLI-01 | Phase 1 | Pending |
+| CLI-01 | Phase 1 | Complete |
 | CLI-02 | Phase 2 | Pending |
-| CLI-03 | Phase 1 | Pending |
+| CLI-03 | Phase 1 | Complete |
 | WIN-01 | Phase 3 | Pending |
 | WIN-02 | Phase 3 | Pending |
 | WIN-03 | Phase 3 | Pending |
@@ -97,7 +97,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | WIN-05 | Phase 4 | Pending |
 | SAFE-01 | Phase 4 | Pending |
 | SAFE-02 | Phase 4 | Pending |
-| SAFE-03 | Phase 1 | Pending |
+| SAFE-03 | Phase 1 | Complete |
 
 **Coverage:**
 - v1 requirements: 21 total
@@ -106,4 +106,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-07-07*
-*Last updated: 2026-07-07 after roadmap creation*
+*Last updated: 2026-07-07 after Phase 1 verification*
