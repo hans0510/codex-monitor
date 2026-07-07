@@ -21,7 +21,6 @@ const reasoningTotal = document.getElementById("reasoningTotal");
 const latestSession = document.getElementById("latestSession");
 const latestMeta = document.getElementById("latestMeta");
 const dragHandle = document.getElementById("dragHandle");
-const closeButton = document.getElementById("closeButton");
 
 capybara.addEventListener("click", () => {
   if (state.companionDragged) {
@@ -67,10 +66,6 @@ dragHandle.addEventListener("mousedown", async (event) => {
   if (event.buttons === 1) {
     await appWindow.startDragging();
   }
-});
-
-closeButton.addEventListener("click", async () => {
-  await appWindow.close();
 });
 
 async function refreshUsage() {

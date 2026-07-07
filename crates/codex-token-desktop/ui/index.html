@@ -16,7 +16,6 @@
           </div>
           <div class="window-actions">
             <span class="live-pill"><i></i>Live</span>
-            <button class="close-button" id="closeButton" type="button" aria-label="关闭">×</button>
           </div>
         </header>
 
@@ -44,8 +43,14 @@
         <p class="home-line" id="homeLine"></p>
       </section>
 
-      <button class="lulu" id="capybara" type="button" aria-label="拖动噜噜，点击打开或隐藏 token 统计">
-        <img src="./lulu.png" alt="噜噜" draggable="false" />
+      <button
+        class="lulu"
+        id="capybara"
+        type="button"
+        aria-label="拖动噜噜，点击打开或隐藏 token 统计"
+        data-tauri-drag-region
+      >
+        <img src="./lulu-cutout.png" alt="噜噜" draggable="false" data-tauri-drag-region />
       </button>
     </main>
     <script src="./app.js"></script>
