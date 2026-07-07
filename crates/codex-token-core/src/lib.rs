@@ -4,6 +4,9 @@ use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
 
+use chrono::{DateTime, Local};
+use serde_json::Value;
+
 pub const APP_NAME: &str = "codex-token-monitor";
 
 const SESSION_DIRS: [&str; 2] = ["sessions", "archived_sessions"];
@@ -28,6 +31,78 @@ impl fmt::Display for ScanError {
 }
 
 impl std::error::Error for ScanError {}
+
+#[derive(Debug)]
+pub enum UsageError {
+    Scan(ScanError),
+    ReadFile { path: PathBuf, source: io::Error },
+}
+
+impl fmt::Display for UsageError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Scan(error) => write!(f, "{error}"),
+            Self::ReadFile { path, source } => {
+                write!(f, "failed to read file {}: {source}", path.display())
+            }
+        }
+    }
+}
+
+impl std::error::Error for UsageError {}
+
+impl From<ScanError> for UsageError {
+    fn from(error: ScanError) -> Self {
+        Self::Scan(error)
+    }
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct TokenUsage {
+    pub input_tokens: u64,
+    pub cached_input_tokens: u64,
+    pub output_tokens: u64,
+    pub reasoning_output_tokens: u64,
+    pub total_tokens: u64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TokenEvent {
+    pub session_id: String,
+    pub timestamp: DateTime<Local>,
+    pub usage: TokenUsage,
+    pub source_path: PathBuf,
+    pub line_number: usize,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SessionSummary {
+    pub session_id: String,
+    pub total: TokenUsage,
+    pub event_count: usize,
+    pub last_event_at: DateTime<Local>,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct UsageSummary {
+    pub today: TokenUsage,
+    pub this_week: TokenUsage,
+    pub this_month: TokenUsage,
+    pub all_time: TokenUsage,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Diagnostic {
+    pub path: PathBuf,
+    pub line_number: usize,
+    pub message: String,
+}
+
+#[derive(Debug, Default)]
+pub struct ParseReport {
+    pub events: Vec<TokenEvent>,
+    pub diagnostics: Vec<Diagnostic>,
+}
 
 pub fn discover_codex_home(override_path: Option<&Path>) -> Option<PathBuf> {
     if let Some(path) = override_path {
@@ -55,6 +130,67 @@ pub fn discover_session_files(codex_home: &Path) -> Result<Vec<PathBuf>, ScanErr
     Ok(files)
 }
 
+pub fn parse_session_file(path: &Path) -> Result<ParseReport, UsageError> {
+    let content = fs::read_to_string(path).map_err(|source| UsageError::ReadFile {
+        path: path.to_path_buf(),
+        source,
+    })?;
+    let mut report = ParseReport::default();
+
+    for (line_index, line) in content.lines().enumerate() {
+        let line_number = line_index + 1;
+        if line.trim().is_empty() {
+            continue;
+        }
+
+        let value = match serde_json::from_str::<Value>(line) {
+            Ok(value) => value,
+            Err(error) => {
+                report.diagnostics.push(Diagnostic {
+                    path: path.to_path_buf(),
+                    line_number,
+                    message: format!("malformed JSONL: {error}"),
+                });
+                continue;
+            }
+        };
+
+        if !is_token_count_event(&value) {
+            continue;
+        }
+
+        let Some(timestamp) = parse_timestamp(&value) else {
+            report.diagnostics.push(Diagnostic {
+                path: path.to_path_buf(),
+                line_number,
+                message: "missing or invalid timestamp".to_string(),
+            });
+            continue;
+        };
+
+        let Some(usage_value) = value.pointer("/payload/info/total_token_usage") else {
+            report.diagnostics.push(Diagnostic {
+                path: path.to_path_buf(),
+                line_number,
+                message: "missing total_token_usage".to_string(),
+            });
+            continue;
+        };
+
+        let session_id = session_id(&value).unwrap_or_else(|| fallback_session_id(path));
+
+        report.events.push(TokenEvent {
+            session_id,
+            timestamp,
+            usage: parse_token_usage(usage_value),
+            source_path: path.to_path_buf(),
+            line_number,
+        });
+    }
+
+    Ok(report)
+}
+
 fn collect_jsonl_files(dir: &Path, files: &mut Vec<PathBuf>) -> Result<(), ScanError> {
     let entries = fs::read_dir(dir).map_err(|source| ScanError::ReadDir {
         path: dir.to_path_buf(),
@@ -80,6 +216,72 @@ fn collect_jsonl_files(dir: &Path, files: &mut Vec<PathBuf>) -> Result<(), ScanE
     }
 
     Ok(())
+}
+
+fn is_token_count_event(value: &Value) -> bool {
+    value.get("type").and_then(Value::as_str) == Some("token_count")
+        || value.pointer("/payload/type").and_then(Value::as_str) == Some("token_count")
+}
+
+fn parse_timestamp(value: &Value) -> Option<DateTime<Local>> {
+    let timestamp = value
+        .get("timestamp")
+        .or_else(|| value.pointer("/payload/timestamp"))
+        .and_then(Value::as_str)?;
+
+    DateTime::parse_from_rfc3339(timestamp)
+        .ok()
+        .map(|datetime| datetime.with_timezone(&Local))
+}
+
+fn session_id(value: &Value) -> Option<String> {
+    [
+        "/payload/session_id",
+        "/payload/id",
+        "/payload/session/id",
+        "/session_id",
+    ]
+    .iter()
+    .find_map(|pointer| {
+        value
+            .pointer(pointer)
+            .and_then(Value::as_str)
+            .filter(|id| !id.is_empty())
+            .map(ToOwned::to_owned)
+    })
+}
+
+fn fallback_session_id(path: &Path) -> String {
+    path.file_stem()
+        .and_then(|name| name.to_str())
+        .unwrap_or("unknown-session")
+        .to_string()
+}
+
+fn parse_token_usage(value: &Value) -> TokenUsage {
+    let usage = TokenUsage {
+        input_tokens: usage_field(value, "input_tokens"),
+        cached_input_tokens: usage_field(value, "cached_input_tokens"),
+        output_tokens: usage_field(value, "output_tokens"),
+        reasoning_output_tokens: usage_field(value, "reasoning_output_tokens"),
+        total_tokens: usage_field(value, "total_tokens"),
+    };
+
+    if usage.total_tokens == 0 {
+        TokenUsage {
+            total_tokens: usage.input_tokens
+                + usage.cached_input_tokens
+                + usage.output_tokens
+                + usage.reasoning_output_tokens,
+            ..usage
+        }
+    } else {
+        usage
+    }
+}
+
+fn usage_field(value: &Value, field: &str) -> u64 {
+    value.get(field).and_then(Value::as_u64).unwrap_or(0)
 }
 
 #[cfg(windows)]
