@@ -294,6 +294,10 @@ pub fn aggregate_usage(codex_home: &Path, now: DateTime<Local>) -> Result<UsageR
     })
 }
 
+pub fn aggregate_usage_now(codex_home: &Path) -> Result<UsageReport, UsageError> {
+    aggregate_usage(codex_home, Local::now())
+}
+
 fn collect_jsonl_files(dir: &Path, files: &mut Vec<PathBuf>) -> Result<(), ScanError> {
     let entries = fs::read_dir(dir).map_err(|source| ScanError::ReadDir {
         path: dir.to_path_buf(),
