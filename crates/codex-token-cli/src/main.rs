@@ -43,6 +43,15 @@ fn run_summary(codex_home_override: Option<PathBuf>) -> Result<(), CliError> {
         discover_codex_home(codex_home_override.as_deref()).ok_or(CliError::MissingCodexHome)?;
     let report = aggregate_usage_now(&codex_home)?;
 
+    if report.session_files.is_empty() {
+        return Err(CliError::NoSessionLogs {
+            searched: vec![
+                codex_home.join("sessions"),
+                codex_home.join("archived_sessions"),
+            ],
+        });
+    }
+
     print_summary(&codex_home, &report);
     Ok(())
 }
@@ -106,6 +115,7 @@ fn print_usage_row(label: &str, usage: TokenUsage) {
 #[derive(Debug)]
 enum CliError {
     MissingCodexHome,
+    NoSessionLogs { searched: Vec<PathBuf> },
     Usage(UsageError),
 }
 
@@ -113,6 +123,14 @@ impl fmt::Display for CliError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::MissingCodexHome => write!(f, "Could not resolve Codex home"),
+            Self::NoSessionLogs { searched } => {
+                writeln!(f, "No Codex session logs found")?;
+                writeln!(f, "Searched:")?;
+                for path in searched {
+                    writeln!(f, "- {}", path.display())?;
+                }
+                Ok(())
+            }
             Self::Usage(error) => write!(f, "{error}"),
         }
     }
