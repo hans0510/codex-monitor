@@ -4,6 +4,8 @@ Local-only Codex token usage summary for the current machine.
 
 ## CLI
 
+The CLI binary is `codex-token-monitor`.
+
 Run against the default Codex home (`CODEX_HOME`, then `~/.codex`):
 
 ```bash

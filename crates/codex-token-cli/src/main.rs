@@ -11,7 +11,12 @@ use codex_token_core::{
 #[command(name = APP_NAME)]
 #[command(about = "Local Codex token usage summary", long_about = None)]
 struct Cli {
-    #[arg(long = "codex-home", value_name = "PATH", global = true)]
+    #[arg(
+        long = "codex-home",
+        value_name = "PATH",
+        global = true,
+        help = "Override Codex home for local logs (--codex-home)"
+    )]
     codex_home: Option<PathBuf>,
 
     #[command(subcommand)]
