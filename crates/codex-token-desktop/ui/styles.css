@@ -1,12 +1,9 @@
 :root {
   --ink: #34251b;
   --muted: #7c6756;
-  --panel: rgba(255, 248, 232, 0.94);
+  --panel: rgba(255, 248, 232, 0.96);
   --panel-strong: #fff2ca;
-  --sun: #f6ca42;
-  --amber: #ee9d26;
   --leaf: #456d4c;
-  --water: #79b4bd;
   --line: rgba(75, 52, 26, 0.16);
 }
 
@@ -32,21 +29,23 @@ button {
 .companion-shell {
   position: relative;
   width: 360px;
-  height: 500px;
-  padding: 16px;
+  height: 680px;
+  padding: 14px;
 }
 
 .stats-panel {
   position: absolute;
-  inset: 12px 12px auto;
-  min-height: 284px;
+  top: 12px;
+  left: 12px;
+  right: 12px;
+  min-height: 334px;
   padding: 16px;
   border: 1px solid var(--line);
   border-radius: 8px;
   background:
     linear-gradient(135deg, rgba(255, 255, 255, 0.72), transparent 44%),
     var(--panel);
-  box-shadow: 0 18px 38px rgba(64, 42, 22, 0.20);
+  box-shadow: 0 18px 38px rgba(64, 42, 22, 0.2);
   transform: translateY(0) scale(1);
   transform-origin: bottom center;
   opacity: 1;
@@ -178,7 +177,7 @@ h1 {
   padding: 8px 6px;
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.48);
-  border: 1px solid rgba(101, 70, 24, 0.10);
+  border: 1px solid rgba(101, 70, 24, 0.1);
   text-align: center;
 }
 
@@ -260,160 +259,42 @@ h1 {
   font-size: 10px;
 }
 
-.capybara {
+.lulu {
   position: absolute;
-  left: 78px;
-  bottom: 16px;
-  width: 204px;
-  height: 196px;
+  left: 35px;
+  bottom: 12px;
+  width: 290px;
+  height: 270px;
   border: 0;
   padding: 0;
   background: transparent;
-  cursor: pointer;
+  cursor: grab;
   filter: drop-shadow(0 18px 18px rgba(60, 35, 14, 0.22));
   transition: transform 160ms ease;
+  user-select: none;
 }
 
-.capybara:hover {
-  transform: translateY(-3px) rotate(-1deg);
+.lulu:active {
+  cursor: grabbing;
 }
 
-.capybara.bumped {
+.lulu:hover {
+  transform: translateY(-3px);
+}
+
+.lulu.bumped {
   animation: bounce 420ms ease;
 }
 
-.head,
-.body,
-.ear,
-.tuft,
-.badge,
-.muzzle,
-.paw,
-.eye,
-.nose,
-.mouth {
-  position: absolute;
+.lulu img {
   display: block;
-}
-
-.head {
-  left: 17px;
-  top: 25px;
-  width: 170px;
-  height: 126px;
-  border-radius: 48% 48% 44% 44%;
-  background: linear-gradient(#ffd84d 0 40%, #f0aa2f 78%);
-  border: 3px solid rgba(91, 58, 12, 0.12);
-}
-
-.body {
-  left: 45px;
-  bottom: 8px;
-  width: 116px;
-  height: 76px;
-  border-radius: 42% 42% 34% 34%;
-  background: linear-gradient(#efaa31, #c97925);
-}
-
-.ear {
-  top: 34px;
-  width: 38px;
-  height: 44px;
-  border-radius: 60% 60% 48% 48%;
-  background: #ffd84d;
-}
-
-.ear.left {
-  left: 18px;
-  transform: rotate(-34deg);
-}
-
-.ear.right {
-  right: 18px;
-  transform: rotate(34deg);
-}
-
-.tuft {
-  left: 83px;
-  top: 2px;
-  width: 48px;
-  height: 35px;
-  border-radius: 48% 52% 44% 48%;
-  background: #f4a827;
-}
-
-.eye {
-  top: 47px;
-  width: 22px;
-  height: 30px;
-  border-radius: 50%;
-  background: #322118;
-  box-shadow: inset -5px 2px 0 rgba(255, 255, 255, 0.72);
-}
-
-.eye.left {
-  left: 50px;
-}
-
-.eye.right {
-  right: 50px;
-}
-
-.muzzle {
-  left: 39px;
-  top: 69px;
-  width: 92px;
-  height: 48px;
-  border-radius: 46% 46% 44% 44%;
-  background: rgba(237, 138, 23, 0.35);
-}
-
-.nose {
-  left: 38px;
-  top: 16px;
-  width: 16px;
-  height: 9px;
-  border-radius: 50%;
-  background: #6c3b22;
-}
-
-.mouth {
-  left: 35px;
-  top: 27px;
-  width: 22px;
-  height: 10px;
-  border-bottom: 2px solid rgba(92, 50, 27, 0.66);
-  border-radius: 0 0 50% 50%;
-}
-
-.paw {
-  bottom: 16px;
-  width: 28px;
-  height: 44px;
-  border-radius: 50% 50% 42% 42%;
-  background: #ffd84d;
-}
-
-.paw.left {
-  left: 58px;
-  transform: rotate(-8deg);
-}
-
-.paw.right {
-  right: 58px;
-  transform: rotate(8deg);
-}
-
-.badge {
-  right: 12px;
-  bottom: 58px;
-  padding: 4px 8px;
-  border-radius: 999px;
-  background: #fff7dc;
-  color: #8a521e;
-  font-size: 12px;
-  font-weight: 900;
-  box-shadow: 0 4px 10px rgba(58, 36, 16, 0.16);
+  width: 100%;
+  height: 100%;
+  border-radius: 8px;
+  object-fit: contain;
+  image-rendering: auto;
+  -webkit-user-drag: none;
+  user-select: none;
 }
 
 body[data-status="error"] .live-pill,
@@ -442,6 +323,6 @@ body[data-status="noLogs"] .live-pill i {
     transform: translateY(0);
   }
   42% {
-    transform: translateY(-10px) rotate(2deg);
+    transform: translateY(-10px);
   }
 }

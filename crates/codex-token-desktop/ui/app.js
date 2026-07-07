@@ -4,6 +4,8 @@ const appWindow = window.__TAURI__.window.getCurrentWindow();
 const state = {
   expanded: true,
   lastTotal: 0,
+  companionPointer: null,
+  companionDragged: false,
 };
 
 const capybara = document.getElementById("capybara");
@@ -22,8 +24,43 @@ const dragHandle = document.getElementById("dragHandle");
 const closeButton = document.getElementById("closeButton");
 
 capybara.addEventListener("click", () => {
+  if (state.companionDragged) {
+    state.companionDragged = false;
+    return;
+  }
   state.expanded = !state.expanded;
   panel.classList.toggle("collapsed", !state.expanded);
+});
+
+capybara.addEventListener("mousedown", (event) => {
+  if (event.buttons !== 1) {
+    return;
+  }
+  state.companionPointer = {
+    x: event.clientX,
+    y: event.clientY,
+  };
+});
+
+document.addEventListener("mousemove", async (event) => {
+  if (!state.companionPointer || event.buttons !== 1) {
+    return;
+  }
+
+  const dx = event.clientX - state.companionPointer.x;
+  const dy = event.clientY - state.companionPointer.y;
+  if (Math.hypot(dx, dy) >= 4) {
+    state.companionPointer = null;
+    state.companionDragged = true;
+    await appWindow.startDragging();
+  }
+});
+
+document.addEventListener("mouseup", () => {
+  state.companionPointer = null;
+  window.setTimeout(() => {
+    state.companionDragged = false;
+  }, 120);
 });
 
 dragHandle.addEventListener("mousedown", async (event) => {
