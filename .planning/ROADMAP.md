@@ -10,7 +10,7 @@ Build the product vertically from the trustworthy counting core outward. Phase 1
 - Integer phases (1, 2, 3): Planned milestone work
 - Decimal phases (2.1, 2.2): Urgent insertions (marked with INSERTED)
 
-- [ ] **Phase 1: Core Parser and CLI** - Accurate local token summaries from Codex JSONL logs.
+- [x] **Phase 1: Core Parser and CLI** - Accurate local token summaries from Codex JSONL logs. (completed 2026-07-07)
 - [ ] **Phase 2: Active Session Refresh** - Current Codex session updates automatically.
 - [ ] **Phase 3: Windows Tray and Stats Panel** - Resident tray app shows the same statistics on Windows.
 - [ ] **Phase 4: Capybara Companion and Polish** - Original clickable desktop companion opens stats without getting in the way.
@@ -27,7 +27,7 @@ Build the product vertically from the trustworthy counting core outward. Phase 1
   2. Parser tests prove cumulative `total_token_usage` events are not overcounted.
   3. Scanner reads only session log locations and excludes credential files.
   4. CLI exits with a useful message when no session logs are found.
-**Plans:** 2/3 plans executed
+**Plans:** 3/3 plans complete
 
 Plans:
 **Wave 1**
@@ -37,7 +37,7 @@ Plans:
 - [x] 01-02: Implement JSONL token parser, dedupe, aggregation, and diagnostics.
 
 **Wave 3** *(blocked on Wave 2 completion)*
-- [ ] 01-03: Implement Ubuntu CLI summary output and no-log handling.
+- [x] 01-03: Implement Ubuntu CLI summary output and no-log handling.
 
 ### Phase 2: Active Session Refresh
 **Goal:** User can monitor the current active Codex session as token usage changes.
@@ -97,7 +97,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Core Parser and CLI | 2/3 | In Progress|  |
+| 1. Core Parser and CLI | 3/3 | Complete   | 2026-07-07 |
 | 2. Active Session Refresh | 0/2 | Not started | - |
 | 3. Windows Tray and Stats Panel | 0/3 | Not started | - |
 | 4. Capybara Companion and Polish | 0/2 | Not started | - |
