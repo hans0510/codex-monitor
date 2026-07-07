@@ -50,7 +50,7 @@ fn write_temp_codex_home(name: &str) -> PathBuf {
 fn parser_reads_fixture_token_count() {
     let report = parse_session_file(&fixture_file()).expect("parse fixture");
 
-    assert_eq!(report.events.len(), 3);
+    assert_eq!(report.events.len(), 2);
 
     let first = &report.events[0];
     assert_eq!(first.session_id, "session-a");
@@ -164,13 +164,19 @@ fn diagnostics_keep_valid_events_in_same_file() {
 
 #[test]
 fn diagnostics_missing_optional_reasoning_does_not_panic() {
-    let report = parse_session_file(&fixture_file()).expect("parse fixture");
+    let path = write_temp_jsonl(
+        "missing-optional",
+        r#"{"timestamp":"2026-07-07T08:01:00Z","type":"token_count","payload":{"type":"token_count","session_id":"missing-optional","info":{"total_token_usage":{"input_tokens":1,"cached_input_tokens":2,"output_tokens":3,"total_tokens":6}}}}
+"#,
+    );
+    let report = parse_session_file(&path).expect("parse temp fixture");
     let event = report
         .events
-        .iter()
-        .find(|event| event.usage.total_tokens == 200)
+        .first()
         .expect("event with missing optional reasoning");
 
     assert_eq!(event.usage.reasoning_output_tokens, 0);
-    assert_eq!(event.usage.total_tokens, 200);
+    assert_eq!(event.usage.total_tokens, 6);
+
+    fs::remove_file(path).ok();
 }

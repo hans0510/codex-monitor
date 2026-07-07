@@ -20,7 +20,7 @@ fn summary_runs_with_codex_home_override() {
     assert!(output.status.success());
     let stdout = String::from_utf8_lossy(&output.stdout);
     assert!(stdout.contains("Codex Token Summary"));
-    assert!(stdout.contains("All time total"));
+    assert!(stdout.contains("All time"));
 }
 
 #[test]
@@ -34,5 +34,32 @@ fn summary_runs_without_explicit_subcommand() {
     assert!(output.status.success());
     let stdout = String::from_utf8_lossy(&output.stdout);
     assert!(stdout.contains("Codex Token Summary"));
-    assert!(stdout.contains("All time total"));
+    assert!(stdout.contains("All time"));
+}
+
+#[test]
+fn summary_output_has_range_rows_and_token_columns() {
+    let output = bin()
+        .args(["summary", "--codex-home"])
+        .arg(fixture_home())
+        .output()
+        .expect("run summary");
+
+    assert!(output.status.success());
+    let stdout = String::from_utf8_lossy(&output.stdout);
+
+    for expected in [
+        "Today",
+        "This week",
+        "This month",
+        "All time",
+        "Input",
+        "Cached",
+        "Output",
+        "Reasoning",
+        "Total",
+        "360",
+    ] {
+        assert!(stdout.contains(expected), "missing {expected} in {stdout}");
+    }
 }

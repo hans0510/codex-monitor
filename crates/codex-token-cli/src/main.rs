@@ -4,7 +4,7 @@ use std::process;
 
 use clap::{Parser, Subcommand};
 use codex_token_core::{
-    aggregate_usage_now, discover_codex_home, UsageError, UsageReport, APP_NAME,
+    aggregate_usage_now, discover_codex_home, TokenUsage, UsageError, UsageReport, APP_NAME,
 };
 
 #[derive(Debug, Parser)]
@@ -43,16 +43,64 @@ fn run_summary(codex_home_override: Option<PathBuf>) -> Result<(), CliError> {
         discover_codex_home(codex_home_override.as_deref()).ok_or(CliError::MissingCodexHome)?;
     let report = aggregate_usage_now(&codex_home)?;
 
-    print_basic_summary(&codex_home, &report);
+    print_summary(&codex_home, &report);
     Ok(())
 }
 
-fn print_basic_summary(codex_home: &std::path::Path, report: &UsageReport) {
+fn print_summary(codex_home: &std::path::Path, report: &UsageReport) {
     println!("Codex Token Summary");
     println!("Codex home: {}", codex_home.display());
     println!("Session files: {}", report.session_files.len());
     println!("Sessions: {}", report.sessions.len());
-    println!("All time total: {}", report.summary.all_time.total_tokens);
+    println!();
+    println!(
+        "{:<11} {:>10} {:>10} {:>10} {:>10} {:>10}",
+        "Range", "Input", "Cached", "Output", "Reasoning", "Total"
+    );
+    print_usage_row("Today", report.summary.today);
+    print_usage_row("This week", report.summary.this_week);
+    print_usage_row("This month", report.summary.this_month);
+    print_usage_row("All time", report.summary.all_time);
+
+    if let Some(latest) = report
+        .sessions
+        .iter()
+        .max_by_key(|session| session.last_event_at)
+    {
+        println!();
+        println!(
+            "Latest session: {} ({} total)",
+            latest.session_id, latest.total.total_tokens
+        );
+    }
+
+    if !report.diagnostics.is_empty() {
+        println!();
+        println!("Warnings:");
+        for diagnostic in report.diagnostics.iter().take(5) {
+            println!(
+                "- {}:{} {}",
+                diagnostic.path.display(),
+                diagnostic.line_number,
+                diagnostic.message
+            );
+        }
+        if report.diagnostics.len() > 5 {
+            println!("- ... {} more", report.diagnostics.len() - 5);
+        }
+    }
+}
+
+fn print_usage_row(label: &str, usage: TokenUsage) {
+    println!(
+        "{:<11} {:>10} {:>10} {:>10} {:>10} {:>10}",
+        label,
+        usage.input_tokens,
+        usage.cached_input_tokens,
+        usage.output_tokens,
+        usage.reasoning_output_tokens,
+        usage.total_tokens
+    );
 }
 
 #[derive(Debug)]
