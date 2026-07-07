@@ -50,8 +50,7 @@ fn write_temp_codex_home(name: &str) -> PathBuf {
 fn parser_reads_fixture_token_count() {
     let report = parse_session_file(&fixture_file()).expect("parse fixture");
 
-    assert_eq!(report.events.len(), 2);
-    assert!(report.diagnostics.is_empty());
+    assert_eq!(report.events.len(), 3);
 
     let first = &report.events[0];
     assert_eq!(first.session_id, "session-a");
@@ -142,4 +141,36 @@ fn aggregation_deduplicates_active_and_archived_by_session_id() {
     assert_eq!(report.summary.all_time.total_tokens, 20);
 
     fs::remove_dir_all(root).ok();
+}
+
+#[test]
+fn diagnostics_reports_missing_total_token_usage() {
+    let report = parse_session_file(&fixture_file()).expect("parse fixture");
+
+    assert!(report
+        .diagnostics
+        .iter()
+        .any(|diagnostic| diagnostic.message.contains("missing total_token_usage")));
+}
+
+#[test]
+fn diagnostics_keep_valid_events_in_same_file() {
+    let report = aggregate_usage(&fixture_home(), local_datetime(2026, 7, 7, 23))
+        .expect("aggregate fixture");
+
+    assert_eq!(report.summary.all_time.total_tokens, 360);
+    assert!(report.diagnostics.len() >= 2);
+}
+
+#[test]
+fn diagnostics_missing_optional_reasoning_does_not_panic() {
+    let report = parse_session_file(&fixture_file()).expect("parse fixture");
+    let event = report
+        .events
+        .iter()
+        .find(|event| event.usage.total_tokens == 200)
+        .expect("event with missing optional reasoning");
+
+    assert_eq!(event.usage.reasoning_output_tokens, 0);
+    assert_eq!(event.usage.total_tokens, 200);
 }
