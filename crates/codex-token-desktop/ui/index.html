@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Codex Token Monitor</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="companion-shell" aria-live="polite">
+      <section class="stats-panel" id="statsPanel">
+        <header class="panel-head">
+          <div class="drag-handle" id="dragHandle">
+            <p class="eyebrow">Codex Token</p>
+            <h1>噜噜记录中</h1>
+          </div>
+          <div class="window-actions">
+            <span class="live-pill"><i></i>Live</span>
+            <button class="close-button" id="closeButton" type="button" aria-label="关闭">×</button>
+          </div>
+        </header>
+
+        <div class="total-strip">
+          <span>All</span>
+          <strong id="allTotal">0</strong>
+        </div>
+
+        <div class="range-grid" id="rangeGrid"></div>
+
+        <div class="latest-box">
+          <span>Latest</span>
+          <strong id="latestSession">-</strong>
+          <small id="latestMeta">等待 session</small>
+        </div>
+
+        <div class="field-grid">
+          <div><span>Input</span><strong id="inputTotal">0</strong></div>
+          <div><span>Cached</span><strong id="cachedTotal">0</strong></div>
+          <div><span>Output</span><strong id="outputTotal">0</strong></div>
+          <div><span>Reasoning</span><strong id="reasoningTotal">0</strong></div>
+        </div>
+
+        <p class="status-line" id="statusLine">启动中...</p>
+        <p class="home-line" id="homeLine"></p>
+      </section>
+
+      <button class="capybara" id="capybara" type="button" aria-label="打开或隐藏 token 统计">
+        <span class="tuft"></span>
+        <span class="ear left"></span>
+        <span class="ear right"></span>
+        <span class="head">
+          <span class="eye left"></span>
+          <span class="eye right"></span>
+          <span class="muzzle">
+            <span class="nose"></span>
+            <span class="mouth"></span>
+          </span>
+        </span>
+        <span class="body">
+          <span class="paw left"></span>
+          <span class="paw right"></span>
+        </span>
+        <span class="badge">噜噜</span>
+      </button>
+    </main>
+    <script src="./app.js"></script>
+  </body>
+</html>

@@ -4,7 +4,8 @@ use std::process;
 
 use clap::{Parser, Subcommand};
 use codex_token_core::{
-    aggregate_usage_now, discover_codex_home, TokenUsage, UsageError, UsageReport, APP_NAME,
+    aggregate_usage_now, discover_codex_home, format_token_count, TokenUsage, UsageError,
+    UsageReport, APP_NAME,
 };
 
 #[derive(Debug, Parser)]
@@ -84,7 +85,8 @@ fn print_summary(codex_home: &std::path::Path, report: &UsageReport) {
         println!();
         println!(
             "Latest session: {} ({} total)",
-            latest.session_id, latest.total.total_tokens
+            latest.session_id,
+            format_token_count(latest.total.total_tokens)
         );
     }
 
@@ -109,11 +111,11 @@ fn print_usage_row(label: &str, usage: TokenUsage) {
     println!(
         "{:<11} {:>10} {:>10} {:>10} {:>10} {:>10}",
         label,
-        usage.input_tokens,
-        usage.cached_input_tokens,
-        usage.output_tokens,
-        usage.reasoning_output_tokens,
-        usage.total_tokens
+        format_token_count(usage.input_tokens),
+        format_token_count(usage.cached_input_tokens),
+        format_token_count(usage.output_tokens),
+        format_token_count(usage.reasoning_output_tokens),
+        format_token_count(usage.total_tokens)
     );
 }
 

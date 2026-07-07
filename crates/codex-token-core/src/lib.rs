@@ -298,6 +298,16 @@ pub fn aggregate_usage_now(codex_home: &Path) -> Result<UsageReport, UsageError>
     aggregate_usage(codex_home, Local::now())
 }
 
+pub fn format_token_count(value: u64) -> String {
+    if value >= 1_000_000 {
+        format_scaled_token_count(value, 1_000_000, "M")
+    } else if value >= 1_000 {
+        format_scaled_token_count(value, 1_000, "K")
+    } else {
+        value.to_string()
+    }
+}
+
 fn collect_jsonl_files(dir: &Path, files: &mut Vec<PathBuf>) -> Result<(), ScanError> {
     let entries = fs::read_dir(dir).map_err(|source| ScanError::ReadDir {
         path: dir.to_path_buf(),
@@ -391,6 +401,13 @@ fn usage_field(value: &Value, field: &str) -> u64 {
     value.get(field).and_then(Value::as_u64).unwrap_or(0)
 }
 
+fn format_scaled_token_count(value: u64, unit: u64, suffix: &str) -> String {
+    let scaled = value as f64 / unit as f64;
+    let rendered = format!("{scaled:.1}");
+    let trimmed = rendered.trim_end_matches(".0");
+    format!("{trimmed}{suffix}")
+}
+
 struct RangeStarts {
     today: DateTime<Local>,
     this_week: DateTime<Local>,
@@ -475,5 +492,16 @@ mod tests {
             discover_codex_home(Some(override_path)),
             Some(PathBuf::from("custom-codex-home"))
         );
+    }
+
+    #[test]
+    fn token_count_format_uses_k_and_m_units() {
+        assert_eq!(format_token_count(999), "999");
+        assert_eq!(format_token_count(1_000), "1K");
+        assert_eq!(format_token_count(1_550), "1.6K");
+        assert_eq!(format_token_count(15_400), "15.4K");
+        assert_eq!(format_token_count(150_000), "150K");
+        assert_eq!(format_token_count(1_000_000), "1M");
+        assert_eq!(format_token_count(1_240_000), "1.2M");
     }
 }

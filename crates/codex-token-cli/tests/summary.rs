@@ -17,6 +17,16 @@ fn empty_codex_home() -> PathBuf {
     path
 }
 
+fn codex_home_with_session(name: &str, content: &str) -> PathBuf {
+    let path =
+        std::env::temp_dir().join(format!("codex-token-monitor-{name}-{}", std::process::id()));
+    std::fs::remove_dir_all(&path).ok();
+    let sessions = path.join("sessions");
+    std::fs::create_dir_all(&sessions).expect("sessions dir");
+    std::fs::write(sessions.join("large.jsonl"), content).expect("session jsonl");
+    path
+}
+
 #[test]
 fn summary_runs_with_codex_home_override() {
     let output = bin()
@@ -70,6 +80,28 @@ fn summary_output_has_range_rows_and_token_columns() {
     ] {
         assert!(stdout.contains(expected), "missing {expected} in {stdout}");
     }
+}
+
+#[test]
+fn summary_formats_large_counts_with_units() {
+    let codex_home = codex_home_with_session(
+        "large-units",
+        r#"{"timestamp":"2026-07-07T08:00:00Z","type":"token_count","payload":{"type":"token_count","session_id":"large","info":{"total_token_usage":{"input_tokens":1200000,"cached_input_tokens":500000,"output_tokens":1200,"reasoning_output_tokens":0,"total_tokens":1701200}}}}
+"#,
+    );
+    let output = bin()
+        .args(["summary", "--codex-home"])
+        .arg(&codex_home)
+        .output()
+        .expect("run summary");
+
+    assert!(output.status.success());
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("1.2M"), "{stdout}");
+    assert!(stdout.contains("500K"), "{stdout}");
+    assert!(stdout.contains("1.7M"), "{stdout}");
+
+    std::fs::remove_dir_all(codex_home).ok();
 }
 
 #[test]
