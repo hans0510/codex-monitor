@@ -53,11 +53,13 @@ Windows should feel like a small desktop companion: a tray process stays residen
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
-| Use local Codex logs as the usage source | This satisfies personal-only tracking and avoids account-wide data | Pending |
-| Build both cumulative and active-session views | The user explicitly selected both statistics scopes | Pending |
-| Make Ubuntu CLI-first | The user only needs command-line stats on Ubuntu | Pending |
-| Make Windows tray + desktop companion | The user selected tray plus clickable capybara desktop pet | Pending |
-| Use original capybara art | Avoids copying a protected character while preserving the intended feel | Pending |
+| Use local Codex logs as the usage source | This satisfies personal-only tracking and avoids account-wide data | Accepted |
+| Build both cumulative and active-session views | The user explicitly selected both statistics scopes | Accepted |
+| Make Ubuntu CLI-first | The user only needs command-line stats on Ubuntu | Accepted |
+| Make Windows tray + desktop companion | The user selected tray plus clickable capybara desktop pet | Accepted |
+| Use original capybara art | Avoids copying a protected character while preserving the intended feel | Accepted |
+| Use shared Rust core with Tauri Windows shell | Keeps parser logic shared while supporting Windows tray/window UI | Accepted |
+| Use Vertical MVP phase structure | Each phase should deliver a usable slice instead of isolated technical layers | Accepted |
 
 ## Evolution
 
@@ -77,4 +79,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-07-07 after initialization*
+*Last updated: 2026-07-07 after roadmap creation*

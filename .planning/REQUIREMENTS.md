@@ -77,33 +77,33 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| DATA-01 | TBD | Pending |
-| DATA-02 | TBD | Pending |
-| DATA-03 | TBD | Pending |
-| DATA-04 | TBD | Pending |
-| DATA-05 | TBD | Pending |
-| STAT-01 | TBD | Pending |
-| STAT-02 | TBD | Pending |
-| STAT-03 | TBD | Pending |
-| STAT-04 | TBD | Pending |
-| STAT-05 | TBD | Pending |
-| CLI-01 | TBD | Pending |
-| CLI-02 | TBD | Pending |
-| CLI-03 | TBD | Pending |
-| WIN-01 | TBD | Pending |
-| WIN-02 | TBD | Pending |
-| WIN-03 | TBD | Pending |
-| WIN-04 | TBD | Pending |
-| WIN-05 | TBD | Pending |
-| SAFE-01 | TBD | Pending |
-| SAFE-02 | TBD | Pending |
-| SAFE-03 | TBD | Pending |
+| DATA-01 | Phase 1 | Pending |
+| DATA-02 | Phase 1 | Pending |
+| DATA-03 | Phase 1 | Pending |
+| DATA-04 | Phase 1 | Pending |
+| DATA-05 | Phase 1 | Pending |
+| STAT-01 | Phase 1 | Pending |
+| STAT-02 | Phase 1 | Pending |
+| STAT-03 | Phase 1 | Pending |
+| STAT-04 | Phase 2 | Pending |
+| STAT-05 | Phase 2 | Pending |
+| CLI-01 | Phase 1 | Pending |
+| CLI-02 | Phase 2 | Pending |
+| CLI-03 | Phase 1 | Pending |
+| WIN-01 | Phase 3 | Pending |
+| WIN-02 | Phase 3 | Pending |
+| WIN-03 | Phase 3 | Pending |
+| WIN-04 | Phase 4 | Pending |
+| WIN-05 | Phase 4 | Pending |
+| SAFE-01 | Phase 4 | Pending |
+| SAFE-02 | Phase 4 | Pending |
+| SAFE-03 | Phase 1 | Pending |
 
 **Coverage:**
 - v1 requirements: 21 total
-- Mapped to phases: 0
-- Unmapped: 21
+- Mapped to phases: 21
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-07-07*
-*Last updated: 2026-07-07 after initial definition*
+*Last updated: 2026-07-07 after roadmap creation*
