@@ -27,11 +27,11 @@ Build the product vertically from the trustworthy counting core outward. Phase 1
   2. Parser tests prove cumulative `total_token_usage` events are not overcounted.
   3. Scanner reads only session log locations and excludes credential files.
   4. CLI exits with a useful message when no session logs are found.
-**Plans:** 3 plans
+**Plans:** 1/3 plans executed
 
 Plans:
 **Wave 1**
-- [ ] 01-01: Scaffold Rust workspace, sanitized fixtures, and session log discovery.
+- [x] 01-01: Scaffold Rust workspace, sanitized fixtures, and session log discovery.
 
 **Wave 2** *(blocked on Wave 1 completion)*
 - [ ] 01-02: Implement JSONL token parser, dedupe, aggregation, and diagnostics.
@@ -97,7 +97,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Core Parser and CLI | 0/3 | Not started | - |
+| 1. Core Parser and CLI | 1/3 | In Progress|  |
 | 2. Active Session Refresh | 0/2 | Not started | - |
 | 3. Windows Tray and Stats Panel | 0/3 | Not started | - |
 | 4. Capybara Companion and Polish | 0/2 | Not started | - |
