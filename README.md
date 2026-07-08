@@ -2,7 +2,7 @@
 
 [中文](#中文默认) | [한국어](#한국어) | [日本語](#日本語) | [English](#english)
 
-## 中文（默认）
+## 中文
 
 Codex Token Monitor 是一个本机 Codex token 用量统计工具，提供命令行统计和 Windows 桌面伴侣界面。它只读取当前机器、当前用户本地的 Codex 会话日志，不读取 `auth.json`，也不会通过网络请求账号用量数据。
 
