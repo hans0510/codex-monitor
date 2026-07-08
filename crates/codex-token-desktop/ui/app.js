@@ -144,7 +144,7 @@ function finishWindowMove(event) {
 }
 
 function applyLuluSize(width, persist) {
-  const safeWidth = Math.min(340, Math.max(190, width));
+  const safeWidth = Math.min(340, Math.max(95, width));
   const safeHeight = Math.round(safeWidth * LULU_ASPECT);
   capybara.style.width = `${safeWidth}px`;
   capybara.style.height = `${safeHeight}px`;
