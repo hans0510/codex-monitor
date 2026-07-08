@@ -15,7 +15,7 @@ It is not an OpenAI account-wide usage dashboard. It only reports logs available
 - **Local privacy boundary**: scans only `.jsonl` files under `sessions` and `archived_sessions`; it does not read `auth.json`.
 - **No account API calls**: does not fetch account usage from OpenAI and does not upload local logs.
 - **Compact formatting**: large numbers are displayed with `K` and `M`.
-- **Windows desktop companion**: opens an original capybara-inspired companion; clicking it expands or collapses the stats panel.
+- **Windows Capybara Lulu**: opens the desktop companion named 水豚噜噜 (Capybara Lulu); clicking it expands or collapses the stats panel.
 
 ## Supported Platforms
 
@@ -181,7 +181,7 @@ cargo run -p codex-token-desktop
 
 Desktop behavior:
 
-- Opens an original capybara-inspired companion window.
+- Opens the Capybara Lulu desktop companion window.
 - Click the companion to show or hide the stats panel.
 - The stats panel refreshes every 2 seconds.
 - The panel uses the same Rust local parser as the CLI.
