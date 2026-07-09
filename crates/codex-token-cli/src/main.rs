@@ -20,9 +20,6 @@ struct Cli {
     )]
     codex_home: Option<PathBuf>,
 
-    #[arg(long = "warnings", global = true, help = "Show log parsing warnings")]
-    warnings: bool,
-
     #[command(subcommand)]
     command: Option<Commands>,
 }
@@ -43,11 +40,11 @@ fn run() -> Result<(), CliError> {
     let cli = Cli::parse();
 
     match cli.command.unwrap_or(Commands::Summary) {
-        Commands::Summary => run_summary(cli.codex_home, cli.warnings),
+        Commands::Summary => run_summary(cli.codex_home),
     }
 }
 
-fn run_summary(codex_home_override: Option<PathBuf>, show_warnings: bool) -> Result<(), CliError> {
+fn run_summary(codex_home_override: Option<PathBuf>) -> Result<(), CliError> {
     let codex_home =
         discover_codex_home(codex_home_override.as_deref()).ok_or(CliError::MissingCodexHome)?;
     let report = aggregate_usage_now(&codex_home)?;
@@ -61,11 +58,11 @@ fn run_summary(codex_home_override: Option<PathBuf>, show_warnings: bool) -> Res
         });
     }
 
-    print_summary(&codex_home, &report, show_warnings);
+    print_summary(&codex_home, &report);
     Ok(())
 }
 
-fn print_summary(codex_home: &std::path::Path, report: &UsageReport, show_warnings: bool) {
+fn print_summary(codex_home: &std::path::Path, report: &UsageReport) {
     println!("Codex Token Summary");
     println!("Codex home: {}", codex_home.display());
     println!("Session files: {}", report.session_files.len());
@@ -93,7 +90,7 @@ fn print_summary(codex_home: &std::path::Path, report: &UsageReport, show_warnin
         );
     }
 
-    if show_warnings && !report.diagnostics.is_empty() {
+    if !report.diagnostics.is_empty() {
         println!();
         println!("Warnings:");
         for diagnostic in report.diagnostics.iter().take(5) {
