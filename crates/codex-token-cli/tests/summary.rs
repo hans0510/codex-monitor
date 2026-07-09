@@ -83,6 +83,34 @@ fn summary_output_has_range_rows_and_token_columns() {
 }
 
 #[test]
+fn summary_hides_warnings_by_default() {
+    let output = bin()
+        .args(["summary", "--codex-home"])
+        .arg(fixture_home())
+        .output()
+        .expect("run summary");
+
+    assert!(output.status.success());
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(!stdout.contains("Warnings:"), "{stdout}");
+    assert!(!stdout.contains("missing total_token_usage"), "{stdout}");
+}
+
+#[test]
+fn summary_shows_warnings_when_requested() {
+    let output = bin()
+        .args(["--warnings", "summary", "--codex-home"])
+        .arg(fixture_home())
+        .output()
+        .expect("run summary with warnings");
+
+    assert!(output.status.success());
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("Warnings:"), "{stdout}");
+    assert!(stdout.contains("missing total_token_usage"), "{stdout}");
+}
+
+#[test]
 fn summary_formats_large_counts_with_units() {
     let codex_home = codex_home_with_session(
         "large-units",
