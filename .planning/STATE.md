@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-07-07)
 Phase: 2
 Plan: Not started
 Status: Ready to plan
-Last activity: 2026-07-10 - Completed quick task 260710-cac: optimized the Windows Lulu quota panel
+Last activity: 2026-07-10 - Completed quick task 260710-t12: published v0.1.2 token lineage fix
 
 Progress: [██████████] 100%
 
@@ -82,6 +82,7 @@ None yet.
 | 260708-fdg | Rename README capybara companion references to Capybara Lulu | 2026-07-08 | 31bfbb3 | [260708-fdg-rename-readme-capybara-companion-referen](./quick/260708-fdg-rename-readme-capybara-companion-referen/) |
 | 260708-jga | Reduce Lulu pet minimum size by half | 2026-07-08 | ef0e4ca | [260708-jga-reduce-lulu-pet-minimum-size-by-half](./quick/260708-jga-reduce-lulu-pet-minimum-size-by-half/) |
 | 260710-cac | Optimize Windows Lulu panel with smaller minimum size and local Codex quota reset data | 2026-07-10 | 0f431d1 | [260710-cac-optimize-windows-lulu-panel-halve-the-mi](./quick/260710-cac-optimize-windows-lulu-panel-halve-the-mi/) |
+| 260710-t12 | Publish v0.1.2 token lineage fix for Windows and Linux | 2026-07-10 | f928b64 | [260710-t12-publish-v0-1-2-token-lineage-fix](./quick/260710-t12-publish-v0-1-2-token-lineage-fix/) |
 
 ## Deferred Items
 
