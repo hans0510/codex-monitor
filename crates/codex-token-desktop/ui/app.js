@@ -2,6 +2,7 @@ const invoke = window.__TAURI__.core.invoke;
 
 const WINDOW_WIDTH = 360;
 const DEFAULT_LULU_WIDTH = 290;
+const MIN_LULU_WIDTH = 47.5;
 const LULU_ASPECT = 1173 / 879;
 
 const state = {
@@ -23,8 +24,10 @@ const inputTotal = document.getElementById("inputTotal");
 const cachedTotal = document.getElementById("cachedTotal");
 const outputTotal = document.getElementById("outputTotal");
 const reasoningTotal = document.getElementById("reasoningTotal");
-const latestSession = document.getElementById("latestSession");
-const latestMeta = document.getElementById("latestMeta");
+const fiveHourRemaining = document.getElementById("fiveHourRemaining");
+const fiveHourReset = document.getElementById("fiveHourReset");
+const weeklyRemaining = document.getElementById("weeklyRemaining");
+const weeklyReset = document.getElementById("weeklyReset");
 const dragHandle = document.getElementById("dragHandle");
 const sizeInput = document.getElementById("luluSize");
 const sizeValue = document.getElementById("luluSizeValue");
@@ -144,7 +147,7 @@ function finishWindowMove(event) {
 }
 
 function applyLuluSize(width, persist) {
-  const safeWidth = Math.min(340, Math.max(95, width));
+  const safeWidth = Math.min(340, Math.max(MIN_LULU_WIDTH, width));
   const safeHeight = Math.round(safeWidth * LULU_ASPECT);
   capybara.style.width = `${safeWidth}px`;
   capybara.style.height = `${safeHeight}px`;
@@ -172,12 +175,14 @@ function renderUsage(usage) {
   homeLine.textContent = usage.codexHome ? usage.codexHome : "";
 
   rangeGrid.replaceChildren(
-    ...usage.ranges.map((range) => {
-      const item = document.createElement("div");
-      item.className = "range-item";
-      item.innerHTML = `<span>${range.label}</span><strong>${range.usage.total}</strong>`;
-      return item;
-    }),
+    ...usage.ranges
+      .filter((range) => range.label !== "All")
+      .map((range) => {
+        const item = document.createElement("div");
+        item.className = "range-item";
+        item.innerHTML = `<span>${range.label}</span><strong>${range.usage.total}</strong>`;
+        return item;
+      }),
   );
 
   const all = usage.ranges.find((range) => range.label === "All");
@@ -192,13 +197,39 @@ function renderUsage(usage) {
     window.setTimeout(() => capybara.classList.remove("bumped"), 420);
   }
 
-  if (usage.latestSession) {
-    latestSession.textContent = `${usage.latestSession.id} · ${usage.latestSession.total}`;
-    latestMeta.textContent = `${usage.latestSession.eventCount} events · ${usage.latestSession.lastEventAt}`;
-  } else {
-    latestSession.textContent = "-";
-    latestMeta.textContent = "等待 session";
+  renderQuota(usage.quotas?.fiveHour, fiveHourRemaining, fiveHourReset);
+  renderQuota(usage.quotas?.weekly, weeklyRemaining, weeklyReset);
+}
+
+function renderQuota(quota, remainingElement, resetElement) {
+  if (!quota) {
+    remainingElement.textContent = "剩余 --";
+    resetElement.textContent = "暂无额度数据";
+    return;
   }
+
+  remainingElement.textContent = `剩余 ${formatPercent(quota.remainingPercent)}%`;
+  resetElement.textContent = `刷新 ${formatResetTime(quota.resetsAt)}`;
+}
+
+function formatPercent(value) {
+  const rounded = Math.round(Number(value) * 10) / 10;
+  return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1);
+}
+
+function formatResetTime(unixSeconds) {
+  const date = new Date(Number(unixSeconds) * 1000);
+  if (Number.isNaN(date.getTime())) {
+    return "时间未知";
+  }
+
+  return new Intl.DateTimeFormat("zh-CN", {
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).format(date);
 }
 
 loadLuluSize();

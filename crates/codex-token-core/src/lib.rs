@@ -119,10 +119,25 @@ pub struct UsageSummary {
     pub all_time: TokenUsage,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct RateLimitWindow {
+    pub used_percent: f64,
+    pub window_minutes: u64,
+    pub resets_at: i64,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct RateLimitSnapshot {
+    pub observed_at: DateTime<Local>,
+    pub primary: Option<RateLimitWindow>,
+    pub secondary: Option<RateLimitWindow>,
+}
+
 #[derive(Debug, Default)]
 pub struct UsageReport {
     pub summary: UsageSummary,
     pub sessions: Vec<SessionSummary>,
+    pub latest_rate_limits: Option<RateLimitSnapshot>,
     pub diagnostics: Vec<Diagnostic>,
     pub session_files: Vec<PathBuf>,
 }
@@ -137,6 +152,7 @@ pub struct Diagnostic {
 #[derive(Debug, Default)]
 pub struct ParseReport {
     pub events: Vec<TokenEvent>,
+    pub rate_limits: Vec<RateLimitSnapshot>,
     pub diagnostics: Vec<Diagnostic>,
 }
 
@@ -204,6 +220,10 @@ pub fn parse_session_file(path: &Path) -> Result<ParseReport, UsageError> {
             continue;
         };
 
+        if let Some(rate_limits) = parse_rate_limits(&value, timestamp) {
+            report.rate_limits.push(rate_limits);
+        }
+
         let Some(usage_value) = value.pointer("/payload/info/total_token_usage") else {
             report.diagnostics.push(Diagnostic {
                 path: path.to_path_buf(),
@@ -231,10 +251,20 @@ pub fn aggregate_usage(codex_home: &Path, now: DateTime<Local>) -> Result<UsageR
     let session_files = discover_session_files(codex_home)?;
     let mut diagnostics = Vec::new();
     let mut events_by_session: BTreeMap<String, Vec<TokenEvent>> = BTreeMap::new();
+    let mut latest_rate_limits: Option<RateLimitSnapshot> = None;
 
     for path in &session_files {
         let report = parse_session_file(path)?;
         diagnostics.extend(report.diagnostics);
+
+        for snapshot in report.rate_limits {
+            let is_latest = latest_rate_limits
+                .as_ref()
+                .is_none_or(|current| snapshot.observed_at >= current.observed_at);
+            if is_latest {
+                latest_rate_limits = Some(snapshot);
+            }
+        }
 
         for event in report.events {
             events_by_session
@@ -289,6 +319,7 @@ pub fn aggregate_usage(codex_home: &Path, now: DateTime<Local>) -> Result<UsageR
     Ok(UsageReport {
         summary,
         sessions,
+        latest_rate_limits,
         diagnostics,
         session_files,
     })
@@ -349,6 +380,33 @@ fn parse_timestamp(value: &Value) -> Option<DateTime<Local>> {
     DateTime::parse_from_rfc3339(timestamp)
         .ok()
         .map(|datetime| datetime.with_timezone(&Local))
+}
+
+fn parse_rate_limits(value: &Value, observed_at: DateTime<Local>) -> Option<RateLimitSnapshot> {
+    let rate_limits = value
+        .pointer("/payload/rate_limits")
+        .or_else(|| value.get("rate_limits"))?;
+    let primary = parse_rate_limit_window(rate_limits.get("primary"));
+    let secondary = parse_rate_limit_window(rate_limits.get("secondary"));
+
+    if primary.is_none() && secondary.is_none() {
+        return None;
+    }
+
+    Some(RateLimitSnapshot {
+        observed_at,
+        primary,
+        secondary,
+    })
+}
+
+fn parse_rate_limit_window(value: Option<&Value>) -> Option<RateLimitWindow> {
+    let value = value?;
+    Some(RateLimitWindow {
+        used_percent: value.get("used_percent")?.as_f64()?,
+        window_minutes: value.get("window_minutes")?.as_u64()?,
+        resets_at: value.get("resets_at")?.as_i64()?,
+    })
 }
 
 fn session_id(value: &Value) -> Option<String> {

@@ -26,10 +26,17 @@
 
         <div class="range-grid" id="rangeGrid"></div>
 
-        <div class="latest-box">
-          <span>Latest</span>
-          <strong id="latestSession">-</strong>
-          <small id="latestMeta">等待 session</small>
+        <div class="quota-grid" aria-label="Codex 额度">
+          <div class="quota-item">
+            <span>5 小时额度</span>
+            <strong id="fiveHourRemaining">剩余 --</strong>
+            <small id="fiveHourReset">暂无额度数据</small>
+          </div>
+          <div class="quota-item">
+            <span>周额度</span>
+            <strong id="weeklyRemaining">剩余 --</strong>
+            <small id="weeklyReset">暂无额度数据</small>
+          </div>
         </div>
 
         <div class="field-grid">
@@ -41,7 +48,7 @@
 
         <label class="size-control">
           <span>大小</span>
-          <input id="luluSize" type="range" min="95" max="340" step="5" />
+          <input id="luluSize" type="range" min="47.5" max="340" step="2.5" />
           <strong id="luluSizeValue">100%</strong>
         </label>
 

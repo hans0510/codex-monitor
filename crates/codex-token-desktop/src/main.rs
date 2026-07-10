@@ -1,10 +1,13 @@
 use std::path::PathBuf;
 
 use codex_token_core::{
-    aggregate_usage_now, discover_codex_home, format_token_count, SessionSummary, TokenUsage,
-    UsageReport,
+    aggregate_usage_now, discover_codex_home, format_token_count, RateLimitSnapshot,
+    RateLimitWindow, TokenUsage, UsageReport,
 };
 use serde::Serialize;
+
+const FIVE_HOUR_WINDOW_MINUTES: u64 = 300;
+const WEEK_WINDOW_MINUTES: u64 = 10_080;
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -13,7 +16,7 @@ struct DesktopUsage {
     session_files: usize,
     sessions: usize,
     ranges: Vec<UsageRange>,
-    latest_session: Option<LatestSession>,
+    quotas: QuotasView,
     diagnostics: Vec<String>,
     status: UsageStatus,
     message: String,
@@ -39,12 +42,16 @@ struct TokenUsageView {
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
-struct LatestSession {
-    id: String,
-    total: String,
-    total_raw: u64,
-    event_count: usize,
-    last_event_at: String,
+struct QuotasView {
+    five_hour: Option<QuotaView>,
+    weekly: Option<QuotaView>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct QuotaView {
+    remaining_percent: f64,
+    resets_at: i64,
 }
 
 #[derive(Debug, Serialize, PartialEq, Eq)]
@@ -70,7 +77,7 @@ fn get_usage() -> DesktopUsage {
             session_files: 0,
             sessions: 0,
             ranges: empty_ranges(),
-            latest_session: None,
+            quotas: empty_quotas(),
             diagnostics: Vec::new(),
             status: UsageStatus::Error,
             message: "无法定位 Codex home".to_string(),
@@ -85,7 +92,7 @@ fn get_usage() -> DesktopUsage {
             session_files: 0,
             sessions: 0,
             ranges: empty_ranges(),
-            latest_session: None,
+            quotas: empty_quotas(),
             diagnostics: Vec::new(),
             status: UsageStatus::Error,
             message: error.to_string(),
@@ -112,11 +119,7 @@ fn set_window_position(window: tauri::WebviewWindow, x: f64, y: f64) -> Result<(
 }
 
 fn ready_usage(codex_home: PathBuf, report: UsageReport) -> DesktopUsage {
-    let latest_session = report
-        .sessions
-        .iter()
-        .max_by_key(|session| session.last_event_at)
-        .map(latest_session);
+    let quotas = quota_views(report.latest_rate_limits.as_ref());
 
     DesktopUsage {
         codex_home: Some(codex_home.display().to_string()),
@@ -128,7 +131,7 @@ fn ready_usage(codex_home: PathBuf, report: UsageReport) -> DesktopUsage {
             usage_range("Month", report.summary.this_month),
             usage_range("All", report.summary.all_time),
         ],
-        latest_session,
+        quotas,
         diagnostics: report
             .diagnostics
             .iter()
@@ -153,7 +156,7 @@ fn no_logs_usage(codex_home: PathBuf) -> DesktopUsage {
         session_files: 0,
         sessions: 0,
         ranges: empty_ranges(),
-        latest_session: None,
+        quotas: empty_quotas(),
         diagnostics: Vec::new(),
         status: UsageStatus::NoLogs,
         message: "还没有发现 Codex session 日志".to_string(),
@@ -187,16 +190,35 @@ fn token_usage_view(usage: TokenUsage) -> TokenUsageView {
     }
 }
 
-fn latest_session(session: &SessionSummary) -> LatestSession {
-    LatestSession {
-        id: session.session_id.clone(),
-        total: format_token_count(session.total.total_tokens),
-        total_raw: session.total.total_tokens,
-        event_count: session.event_count,
-        last_event_at: session
-            .last_event_at
-            .format("%Y-%m-%d %H:%M:%S")
-            .to_string(),
+fn empty_quotas() -> QuotasView {
+    QuotasView {
+        five_hour: None,
+        weekly: None,
+    }
+}
+
+fn quota_views(snapshot: Option<&RateLimitSnapshot>) -> QuotasView {
+    QuotasView {
+        five_hour: snapshot
+            .and_then(|snapshot| quota_window(snapshot, FIVE_HOUR_WINDOW_MINUTES))
+            .map(quota_view),
+        weekly: snapshot
+            .and_then(|snapshot| quota_window(snapshot, WEEK_WINDOW_MINUTES))
+            .map(quota_view),
+    }
+}
+
+fn quota_window(snapshot: &RateLimitSnapshot, window_minutes: u64) -> Option<&RateLimitWindow> {
+    [snapshot.primary.as_ref(), snapshot.secondary.as_ref()]
+        .into_iter()
+        .flatten()
+        .find(|window| window.window_minutes == window_minutes)
+}
+
+fn quota_view(window: &RateLimitWindow) -> QuotaView {
+    QuotaView {
+        remaining_percent: (100.0 - window.used_percent).clamp(0.0, 100.0),
+        resets_at: window.resets_at,
     }
 }
 
@@ -224,7 +246,7 @@ mod tests {
         fs::create_dir_all(root.join("sessions")).expect("sessions dir");
         fs::write(
             root.join("sessions/large.jsonl"),
-            r#"{"timestamp":"2026-07-07T08:00:00Z","type":"token_count","payload":{"type":"token_count","session_id":"large","info":{"total_token_usage":{"input_tokens":1200000,"cached_input_tokens":500000,"output_tokens":1200,"reasoning_output_tokens":0,"total_tokens":1701200}}}}
+            r#"{"timestamp":"2026-07-07T08:00:00Z","type":"token_count","payload":{"type":"token_count","session_id":"large","info":{"total_token_usage":{"input_tokens":1200000,"cached_input_tokens":500000,"output_tokens":1200,"reasoning_output_tokens":0,"total_tokens":1701200}},"rate_limits":{"primary":{"used_percent":12.0,"window_minutes":300,"resets_at":1783411200},"secondary":{"used_percent":34.0,"window_minutes":10080,"resets_at":1784016000}}}}
 "#,
         )
         .expect("write session");
@@ -244,6 +266,12 @@ mod tests {
         assert_eq!(all.usage.cached, "500K");
         assert_eq!(all.usage.output, "1.2K");
         assert_eq!(all.usage.total, "1.7M");
+        let five_hour = usage.quotas.five_hour.expect("five-hour quota");
+        let weekly = usage.quotas.weekly.expect("weekly quota");
+        assert_eq!(five_hour.remaining_percent, 88.0);
+        assert_eq!(five_hour.resets_at, 1_783_411_200);
+        assert_eq!(weekly.remaining_percent, 66.0);
+        assert_eq!(weekly.resets_at, 1_784_016_000);
 
         if let Some(value) = previous {
             std::env::set_var("CODEX_HOME", value);
