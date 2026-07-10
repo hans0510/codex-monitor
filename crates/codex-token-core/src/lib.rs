@@ -104,6 +104,12 @@ pub struct TokenEvent {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SessionLineage {
+    pub thread_id: String,
+    pub parent_thread_id: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SessionSummary {
     pub session_id: String,
     pub total: TokenUsage,
@@ -152,6 +158,7 @@ pub struct Diagnostic {
 #[derive(Debug, Default)]
 pub struct ParseReport {
     pub events: Vec<TokenEvent>,
+    pub lineage: Option<SessionLineage>,
     pub rate_limits: Vec<RateLimitSnapshot>,
     pub diagnostics: Vec<Diagnostic>,
 }
@@ -207,6 +214,10 @@ pub fn parse_session_file(path: &Path) -> Result<ParseReport, UsageError> {
             }
         };
 
+        if report.lineage.is_none() {
+            report.lineage = parse_session_lineage(&value);
+        }
+
         if !is_token_count_event(&value) {
             continue;
         }
@@ -251,6 +262,7 @@ pub fn aggregate_usage(codex_home: &Path, now: DateTime<Local>) -> Result<UsageR
     let session_files = discover_session_files(codex_home)?;
     let mut diagnostics = Vec::new();
     let mut events_by_session: BTreeMap<String, Vec<TokenEvent>> = BTreeMap::new();
+    let mut lineage_by_session: BTreeMap<String, SessionLineage> = BTreeMap::new();
     let mut latest_rate_limits: Option<RateLimitSnapshot> = None;
 
     for path in &session_files {
@@ -267,6 +279,11 @@ pub fn aggregate_usage(codex_home: &Path, now: DateTime<Local>) -> Result<UsageR
         }
 
         for event in report.events {
+            if let Some(lineage) = &report.lineage {
+                lineage_by_session
+                    .entry(event.session_id.clone())
+                    .or_insert_with(|| lineage.clone());
+            }
             events_by_session
                 .entry(event.session_id.clone())
                 .or_default()
@@ -278,17 +295,35 @@ pub fn aggregate_usage(codex_home: &Path, now: DateTime<Local>) -> Result<UsageR
     let mut summary = UsageSummary::default();
     let mut sessions = Vec::new();
 
-    for (session_id, mut events) in events_by_session {
+    for events in events_by_session.values_mut() {
         events.sort_by(|left, right| {
             left.timestamp
                 .cmp(&right.timestamp)
                 .then_with(|| left.source_path.cmp(&right.source_path))
                 .then_with(|| left.line_number.cmp(&right.line_number))
         });
+    }
 
-        let mut previous = None;
-        for event in &events {
+    let session_by_thread_id: BTreeMap<String, String> = lineage_by_session
+        .iter()
+        .map(|(session_id, lineage)| (lineage.thread_id.clone(), session_id.clone()))
+        .collect();
+
+    for (session_id, events) in &events_by_session {
+        let inherited_prefix = inherited_prefix_len(
+            session_id,
+            &events_by_session,
+            &lineage_by_session,
+            &session_by_thread_id,
+        );
+        let mut previous = inherited_prefix
+            .checked_sub(1)
+            .map(|index| events[index].usage);
+        let mut session_total = TokenUsage::default();
+
+        for event in events.iter().skip(inherited_prefix) {
             let delta = previous.map_or(event.usage, |usage| event.usage.saturating_delta(usage));
+            session_total += delta;
 
             if event.timestamp >= ranges.today {
                 summary.today += delta;
@@ -304,11 +339,11 @@ pub fn aggregate_usage(codex_home: &Path, now: DateTime<Local>) -> Result<UsageR
         }
 
         if let Some(last) = events.last() {
-            summary.all_time += last.usage;
+            summary.all_time += session_total;
             sessions.push(SessionSummary {
-                session_id,
-                total: last.usage,
-                event_count: events.len(),
+                session_id: session_id.clone(),
+                total: session_total,
+                event_count: events.len() - inherited_prefix,
                 last_event_at: last.timestamp,
             });
         }
@@ -323,6 +358,48 @@ pub fn aggregate_usage(codex_home: &Path, now: DateTime<Local>) -> Result<UsageR
         diagnostics,
         session_files,
     })
+}
+
+fn inherited_prefix_len(
+    session_id: &str,
+    events_by_session: &BTreeMap<String, Vec<TokenEvent>>,
+    lineage_by_session: &BTreeMap<String, SessionLineage>,
+    session_by_thread_id: &BTreeMap<String, String>,
+) -> usize {
+    let Some(parent_thread_id) = lineage_by_session
+        .get(session_id)
+        .and_then(|lineage| lineage.parent_thread_id.as_ref())
+    else {
+        return 0;
+    };
+    let Some(parent_session_id) = session_by_thread_id.get(parent_thread_id) else {
+        return 0;
+    };
+    let Some(events) = events_by_session.get(session_id) else {
+        return 0;
+    };
+    let Some(parent_events) = events_by_session.get(parent_session_id) else {
+        return 0;
+    };
+
+    let Some(first_event) = events.first() else {
+        return 0;
+    };
+
+    // Forked logs replay parent counters with fresh timestamps.
+    parent_events
+        .iter()
+        .enumerate()
+        .filter(|(_, parent_event)| parent_event.usage == first_event.usage)
+        .map(|(start, _)| {
+            events
+                .iter()
+                .zip(&parent_events[start..])
+                .take_while(|(event, parent_event)| event.usage == parent_event.usage)
+                .count()
+        })
+        .max()
+        .unwrap_or(0)
 }
 
 pub fn aggregate_usage_now(codex_home: &Path) -> Result<UsageReport, UsageError> {
@@ -369,6 +446,23 @@ fn collect_jsonl_files(dir: &Path, files: &mut Vec<PathBuf>) -> Result<(), ScanE
 fn is_token_count_event(value: &Value) -> bool {
     value.get("type").and_then(Value::as_str) == Some("token_count")
         || value.pointer("/payload/type").and_then(Value::as_str) == Some("token_count")
+}
+
+fn parse_session_lineage(value: &Value) -> Option<SessionLineage> {
+    if value.get("type").and_then(Value::as_str) != Some("session_meta") {
+        return None;
+    }
+
+    let thread_id = value.pointer("/payload/id")?.as_str()?.to_string();
+    let parent_thread_id = value
+        .pointer("/payload/source/subagent/thread_spawn/parent_thread_id")
+        .and_then(Value::as_str)
+        .map(ToOwned::to_owned);
+
+    Some(SessionLineage {
+        thread_id,
+        parent_thread_id,
+    })
 }
 
 fn parse_timestamp(value: &Value) -> Option<DateTime<Local>> {

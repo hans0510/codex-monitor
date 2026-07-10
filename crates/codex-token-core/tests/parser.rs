@@ -188,6 +188,81 @@ fn aggregation_deduplicates_active_and_archived_by_session_id() {
 }
 
 #[test]
+fn aggregation_excludes_parent_history_copied_into_subagent() {
+    let root = write_temp_codex_home("subagent-lineage");
+    fs::write(
+        root.join("sessions/parent.jsonl"),
+        r#"{"timestamp":"2026-07-06T08:00:00Z","type":"session_meta","payload":{"id":"parent-thread","source":"vscode"}}
+{"timestamp":"2026-07-06T08:01:00Z","type":"event_msg","payload":{"type":"token_count","info":{"total_token_usage":{"input_tokens":90,"cached_input_tokens":70,"output_tokens":10,"reasoning_output_tokens":4,"total_tokens":100}}}}
+{"timestamp":"2026-07-06T09:00:00Z","type":"event_msg","payload":{"type":"token_count","info":{"total_token_usage":{"input_tokens":225,"cached_input_tokens":190,"output_tokens":25,"reasoning_output_tokens":8,"total_tokens":250}}}}
+{"timestamp":"2026-07-07T11:00:00Z","type":"event_msg","payload":{"type":"token_count","info":{"total_token_usage":{"input_tokens":270,"cached_input_tokens":225,"output_tokens":30,"reasoning_output_tokens":10,"total_tokens":300}}}}
+"#,
+    )
+    .expect("write parent session");
+    fs::write(
+        root.join("sessions/child.jsonl"),
+        r#"{"timestamp":"2026-07-07T10:00:00Z","type":"session_meta","payload":{"id":"child-thread","source":{"subagent":{"thread_spawn":{"parent_thread_id":"parent-thread","depth":1}}}}}
+{"timestamp":"2026-07-07T10:01:00Z","type":"event_msg","payload":{"type":"token_count","info":{"total_token_usage":{"input_tokens":90,"cached_input_tokens":70,"output_tokens":10,"reasoning_output_tokens":4,"total_tokens":100}}}}
+{"timestamp":"2026-07-07T10:02:00Z","type":"event_msg","payload":{"type":"token_count","info":{"total_token_usage":{"input_tokens":225,"cached_input_tokens":190,"output_tokens":25,"reasoning_output_tokens":8,"total_tokens":250}}}}
+{"timestamp":"2026-07-07T10:03:00Z","type":"event_msg","payload":{"type":"token_count","info":{"total_token_usage":{"input_tokens":261,"cached_input_tokens":219,"output_tokens":29,"reasoning_output_tokens":9,"total_tokens":290}}}}
+{"timestamp":"2026-07-07T10:04:00Z","type":"event_msg","payload":{"type":"token_count","info":{"total_token_usage":{"input_tokens":297,"cached_input_tokens":248,"output_tokens":33,"reasoning_output_tokens":11,"total_tokens":330}}}}
+"#,
+    )
+    .expect("write child session");
+
+    let report = aggregate_usage(&root, local_datetime(2026, 7, 7, 23))
+        .expect("aggregate parent and child sessions");
+    let child = report
+        .sessions
+        .iter()
+        .find(|session| session.session_id == "child")
+        .expect("child session summary");
+
+    assert_eq!(child.total.total_tokens, 80);
+    assert_eq!(report.summary.today.total_tokens, 130);
+    assert_eq!(report.summary.all_time.total_tokens, 380);
+
+    fs::remove_dir_all(root).ok();
+}
+
+#[test]
+fn aggregation_uses_matching_parent_suffix_as_subagent_baseline() {
+    let root = write_temp_codex_home("subagent-suffix");
+    fs::write(
+        root.join("sessions/parent.jsonl"),
+        r#"{"timestamp":"2026-07-06T08:00:00Z","type":"session_meta","payload":{"id":"parent-thread","source":"vscode"}}
+{"timestamp":"2026-07-06T08:01:00Z","type":"event_msg","payload":{"type":"token_count","info":{"total_token_usage":{"input_tokens":90,"cached_input_tokens":70,"output_tokens":10,"reasoning_output_tokens":4,"total_tokens":100}}}}
+{"timestamp":"2026-07-06T09:00:00Z","type":"event_msg","payload":{"type":"token_count","info":{"total_token_usage":{"input_tokens":225,"cached_input_tokens":190,"output_tokens":25,"reasoning_output_tokens":8,"total_tokens":250}}}}
+{"timestamp":"2026-07-07T11:00:00Z","type":"event_msg","payload":{"type":"token_count","info":{"total_token_usage":{"input_tokens":270,"cached_input_tokens":225,"output_tokens":30,"reasoning_output_tokens":10,"total_tokens":300}}}}
+"#,
+    )
+    .expect("write parent session");
+    fs::write(
+        root.join("sessions/child.jsonl"),
+        r#"{"timestamp":"2026-07-07T10:00:00Z","type":"session_meta","payload":{"id":"child-thread","source":{"subagent":{"thread_spawn":{"parent_thread_id":"parent-thread","depth":1}}}}}
+{"timestamp":"2026-07-07T10:01:00Z","type":"event_msg","payload":{"type":"token_count","info":{"total_token_usage":{"input_tokens":225,"cached_input_tokens":190,"output_tokens":25,"reasoning_output_tokens":8,"total_tokens":250}}}}
+{"timestamp":"2026-07-07T10:02:00Z","type":"event_msg","payload":{"type":"token_count","info":{"total_token_usage":{"input_tokens":261,"cached_input_tokens":219,"output_tokens":29,"reasoning_output_tokens":9,"total_tokens":290}}}}
+{"timestamp":"2026-07-07T10:03:00Z","type":"event_msg","payload":{"type":"token_count","info":{"total_token_usage":{"input_tokens":297,"cached_input_tokens":248,"output_tokens":33,"reasoning_output_tokens":11,"total_tokens":330}}}}
+"#,
+    )
+    .expect("write child session");
+
+    let report = aggregate_usage(&root, local_datetime(2026, 7, 7, 23))
+        .expect("aggregate parent and child sessions");
+    let child = report
+        .sessions
+        .iter()
+        .find(|session| session.session_id == "child")
+        .expect("child session summary");
+
+    assert_eq!(child.total.total_tokens, 80);
+    assert_eq!(report.summary.today.total_tokens, 130);
+    assert_eq!(report.summary.all_time.total_tokens, 380);
+
+    fs::remove_dir_all(root).ok();
+}
+
+#[test]
 fn diagnostics_reports_missing_total_token_usage() {
     let report = parse_session_file(&fixture_file()).expect("parse fixture");
 
