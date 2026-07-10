@@ -413,7 +413,7 @@ checksum = "c8d4a3bb8b1e0c1050499d1815f5ab16d04f0959b233085fb31653fbfc9d98f9"
 
 [[package]]
 name = "codex-token-cli"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "clap",
  "codex-token-core",
@@ -421,7 +421,7 @@ dependencies = [
 
 [[package]]
 name = "codex-token-core"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "chrono",
  "serde",
@@ -430,7 +430,7 @@ dependencies = [
 
 [[package]]
 name = "codex-token-desktop"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "codex-token-core",
  "serde",
