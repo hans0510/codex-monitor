@@ -1,4 +1,5 @@
 const invoke = window.__TAURI__.core.invoke;
+const appWindow = window.__TAURI__.window.getCurrentWindow();
 
 const WINDOW_WIDTH = 360;
 const DEFAULT_LULU_WIDTH = 290;
@@ -9,9 +10,10 @@ const state = {
   expanded: true,
   lastTotal: 0,
   pointer: null,
-  moveFrame: 0,
-  pendingMove: null,
   dragged: false,
+  dragActive: false,
+  dragIdleTimer: 0,
+  refreshInFlight: false,
 };
 
 const capybara = document.getElementById("capybara");
@@ -42,10 +44,15 @@ capybara.addEventListener("click", () => {
 });
 
 capybara.addEventListener("pointerdown", beginWindowMove);
-dragHandle.addEventListener("pointerdown", beginWindowMove);
-document.addEventListener("pointermove", moveWindow);
+dragHandle.addEventListener("pointerdown", beginImmediateWindowDrag);
+document.addEventListener("pointermove", startWindowDrag);
 document.addEventListener("pointerup", finishWindowMove);
 document.addEventListener("pointercancel", finishWindowMove);
+void appWindow.onMoved(() => {
+  if (state.dragActive) {
+    markWindowMoved();
+  }
+});
 
 sizeInput.addEventListener("input", () => {
   applyLuluSize(Number(sizeInput.value), true);
@@ -57,80 +64,70 @@ function loadLuluSize() {
   applyLuluSize(size, false);
 }
 
-async function beginWindowMove(event) {
+function beginWindowMove(event) {
   if (event.button !== 0) {
     return;
   }
 
   const target = event.currentTarget;
-  const pointerId = event.pointerId;
-  const startX = event.screenX;
-  const startY = event.screenY;
-
   state.pointer = {
-    id: pointerId,
+    id: event.pointerId,
     target,
-    startX,
-    startY,
-    windowX: 0,
-    windowY: 0,
-    active: false,
-    ready: false,
+    startX: event.screenX,
+    startY: event.screenY,
   };
-  target.setPointerCapture?.(pointerId);
-
-  try {
-    const position = await invoke("get_window_position");
-    if (!state.pointer || state.pointer.id !== pointerId) {
-      return;
-    }
-    state.pointer.windowX = position.x;
-    state.pointer.windowY = position.y;
-    state.pointer.ready = true;
-  } catch (error) {
-    statusLine.textContent = `拖动失败：${error}`;
-    document.body.dataset.status = "error";
-  }
+  target.setPointerCapture?.(event.pointerId);
 }
 
-function moveWindow(event) {
+function beginImmediateWindowDrag(event) {
+  if (event.button !== 0) {
+    return;
+  }
+
+  state.pointer = null;
+  state.dragged = true;
+  markWindowMoved();
+  void startNativeWindowDrag();
+}
+
+function startWindowDrag(event) {
   const pointer = state.pointer;
-  if (!pointer || !pointer.ready || event.pointerId !== pointer.id || event.buttons !== 1) {
+  if (!pointer || event.pointerId !== pointer.id || event.buttons !== 1) {
     return;
   }
 
   const dx = event.screenX - pointer.startX;
   const dy = event.screenY - pointer.startY;
-  if (!pointer.active && Math.hypot(dx, dy) < 4) {
+  if (Math.hypot(dx, dy) < 3) {
     return;
   }
 
-  pointer.active = true;
+  pointer.target.releasePointerCapture?.(pointer.id);
+  state.pointer = null;
   state.dragged = true;
-  scheduleWindowMove(pointer.windowX + dx, pointer.windowY + dy);
+  markWindowMoved();
+  void startNativeWindowDrag();
 }
 
-function scheduleWindowMove(x, y) {
-  state.pendingMove = { x, y };
-  if (state.moveFrame) {
-    return;
+async function startNativeWindowDrag() {
+  try {
+    await appWindow.startDragging();
+  } catch (error) {
+    state.dragActive = false;
+    state.dragged = false;
+    statusLine.textContent = `拖动失败：${error}`;
+    document.body.dataset.status = "error";
   }
+}
 
-  state.moveFrame = window.requestAnimationFrame(async () => {
-    const move = state.pendingMove;
-    state.pendingMove = null;
-    state.moveFrame = 0;
-    if (!move) {
-      return;
-    }
-
-    try {
-      await invoke("set_window_position", move);
-    } catch (error) {
-      statusLine.textContent = `拖动失败：${error}`;
-      document.body.dataset.status = "error";
-    }
-  });
+function markWindowMoved() {
+  state.dragActive = true;
+  window.clearTimeout(state.dragIdleTimer);
+  state.dragIdleTimer = window.setTimeout(() => {
+    state.dragActive = false;
+    state.dragged = false;
+    void refreshUsage();
+  }, 180);
 }
 
 function finishWindowMove(event) {
@@ -141,9 +138,6 @@ function finishWindowMove(event) {
 
   pointer.target.releasePointerCapture?.(pointer.id);
   state.pointer = null;
-  window.setTimeout(() => {
-    state.dragged = false;
-  }, 160);
 }
 
 function applyLuluSize(width, persist) {
@@ -160,12 +154,19 @@ function applyLuluSize(width, persist) {
 }
 
 async function refreshUsage() {
+  if (state.refreshInFlight || state.dragActive) {
+    return;
+  }
+
+  state.refreshInFlight = true;
   try {
     const usage = await invoke("get_usage");
     renderUsage(usage);
   } catch (error) {
     statusLine.textContent = `读取失败：${error}`;
     document.body.dataset.status = "error";
+  } finally {
+    state.refreshInFlight = false;
   }
 }
 

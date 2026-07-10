@@ -62,15 +62,23 @@ enum UsageStatus {
     Error,
 }
 
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-struct WindowPosition {
-    x: f64,
-    y: f64,
+#[tauri::command]
+async fn get_usage() -> DesktopUsage {
+    tauri::async_runtime::spawn_blocking(collect_usage)
+        .await
+        .unwrap_or_else(|error| DesktopUsage {
+            codex_home: None,
+            session_files: 0,
+            sessions: 0,
+            ranges: empty_ranges(),
+            quotas: empty_quotas(),
+            diagnostics: Vec::new(),
+            status: UsageStatus::Error,
+            message: format!("统计任务失败：{error}"),
+        })
 }
 
-#[tauri::command]
-fn get_usage() -> DesktopUsage {
+fn collect_usage() -> DesktopUsage {
     let Some(codex_home) = discover_codex_home(None) else {
         return DesktopUsage {
             codex_home: None,
@@ -98,24 +106,6 @@ fn get_usage() -> DesktopUsage {
             message: error.to_string(),
         },
     }
-}
-
-#[tauri::command]
-fn get_window_position(window: tauri::WebviewWindow) -> Result<WindowPosition, String> {
-    let position = window.outer_position().map_err(|error| error.to_string())?;
-    let scale = window.scale_factor().map_err(|error| error.to_string())?;
-
-    Ok(WindowPosition {
-        x: f64::from(position.x) / scale,
-        y: f64::from(position.y) / scale,
-    })
-}
-
-#[tauri::command]
-fn set_window_position(window: tauri::WebviewWindow, x: f64, y: f64) -> Result<(), String> {
-    window
-        .set_position(tauri::Position::Logical(tauri::LogicalPosition { x, y }))
-        .map_err(|error| error.to_string())
 }
 
 fn ready_usage(codex_home: PathBuf, report: UsageReport) -> DesktopUsage {
@@ -224,11 +214,7 @@ fn quota_view(window: &RateLimitWindow) -> QuotaView {
 
 fn main() {
     tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![
-            get_usage,
-            get_window_position,
-            set_window_position
-        ])
+        .invoke_handler(tauri::generate_handler![get_usage])
         .run(tauri::generate_context!())
         .expect("failed to run Codex Token Monitor desktop app");
 }
@@ -254,7 +240,7 @@ mod tests {
         let previous = std::env::var_os("CODEX_HOME");
         std::env::set_var("CODEX_HOME", &root);
 
-        let usage = get_usage();
+        let usage = collect_usage();
         let all = usage
             .ranges
             .iter()
